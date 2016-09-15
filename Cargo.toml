@@ -1,0 +1,17 @@
+[package]
+name = "conference_registration"
+version = "0.1.0"
+authors = ["Willi Kappler, grandor@gmx.de"]
+
+[dependencies]
+iron = "0.4"
+handlebars-iron = "0.18"
+router = "0.4"
+mount = "0.2"
+# staticfile = "0.3"
+rusqlite = "0.7"
+# Maybe use chrono instead of time
+# chrono = "0.2"
+time = "0.1"
+regex = "0.1"
+persistent = "0.2"
