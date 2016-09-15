@@ -4,10 +4,10 @@ extern crate mount;
 // extern crate staticfile;
 extern crate rusqlite;
 extern crate handlebars_iron;
+extern crate rustc_serialize;
 
 // System modules
 
-use std::collections::HashMap;
 use std::error::Error;
 
 // External modules
@@ -18,7 +18,7 @@ use router::Router;
 use mount::Mount;
 // use staticfile::Static;
 use rusqlite::{SqliteConnection};
-use handlebars_iron::{Template, HandlebarsEngine, DirectorySource, MemorySource};
+use handlebars_iron::{HandlebarsEngine, DirectorySource};
 
 // Local modules
 
