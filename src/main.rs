@@ -1,7 +1,7 @@
 extern crate iron;
 extern crate router;
 extern crate mount;
-// extern crate staticfile;
+extern crate staticfile;
 extern crate rusqlite;
 extern crate handlebars_iron;
 extern crate rustc_serialize;
@@ -9,6 +9,7 @@ extern crate rustc_serialize;
 // System modules
 
 use std::error::Error;
+use std::path::Path;
 
 // External modules
 
@@ -16,7 +17,7 @@ use iron::prelude::{Iron, Chain};
 
 use router::Router;
 use mount::Mount;
-// use staticfile::Static;
+use staticfile::Static;
 use rusqlite::{SqliteConnection};
 use handlebars_iron::{HandlebarsEngine, DirectorySource};
 
@@ -54,6 +55,7 @@ fn main() {
     let mut mount = Mount::new();
 
     mount.mount("/", router);
+    mount.mount("/css/", Static::new(Path::new("css/")));
 
     let mut chain = Chain::new(mount);
     chain.link_after(hbse);
