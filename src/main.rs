@@ -9,6 +9,7 @@ extern crate params;
 extern crate plugin;
 #[macro_use] extern crate log;
 extern crate simplelog;
+extern crate persistent;
 
 // System modules
 
@@ -19,23 +20,27 @@ use std::fs::File;
 // External modules
 
 use iron::prelude::{Iron, Chain};
-
+use iron::typemap::Key;
 use router::Router;
 use mount::Mount;
 use staticfile::Static;
-use rusqlite::{SqliteConnection};
+use rusqlite::Connection;
 use handlebars_iron::{HandlebarsEngine, DirectorySource};
 use simplelog::{FileLogger, LogLevelFilter};
+use persistent::Write;
+
 
 // Local modules
 
 mod config;
 mod handler;
 
-
-
 use config::load_configuration;
 use handler::{handle_main, handle_submit};
+
+pub struct DBConnection;
+
+impl Key for DBConnection { type Value = Connection; }
 
 fn main() {
 
@@ -46,7 +51,7 @@ fn main() {
     
     let config = load_configuration("");
 
-    let db_conn = SqliteConnection::open(config.db_filename).unwrap();
+    let db_conn = Connection::open(config.db_filename).unwrap();
 
     let mut hbse = HandlebarsEngine::new();
     hbse.add(Box::new(DirectorySource::new(&config.template_folder, ".hbs")));
@@ -68,8 +73,11 @@ fn main() {
     mount.mount("/", router);
     mount.mount("/css/", Static::new(Path::new("css/")));
 
-    let mut chain = Chain::new(mount);
-    chain.link_after(hbse);
+    let mut chain1 = Chain::new(mount);
+    chain1.link_after(hbse);
 
-    Iron::new(chain).http(config.socket_addr).unwrap();
+    let mut chain2 = Chain::new(chain1);
+    chain2.link(Write::<DBConnection>::both(db_conn));
+    
+    Iron::new(chain2).http(config.socket_addr).unwrap();
 }

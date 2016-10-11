@@ -5,12 +5,47 @@ use iron::status;
 
 use handlebars_iron::{Template};
 
-use rustc_serialize::json::Json;
+use rustc_serialize::json::{Json, ToJson};
 
-use params::{Params, Value, Map};
+use params::{Params, Value, Map, ParamsError};
 
 use plugin::Pluggable;
 
+use persistent::{Write, PersistentError};
+
+use rusqlite::Connection;
+
+use std::sync::{PoisonError, MutexGuard};
+
+use ::DBConnection;
+
+
+#[derive(Debug)]
+pub enum HandleError {
+    FormParameter,
+    FormValue,
+    Persistent,
+    Mutex,
+    DBSend
+}
+
+impl From<PersistentError> for HandleError {
+    fn from(err: PersistentError) -> HandleError {
+        HandleError::Persistent
+    }
+}
+
+impl From<ParamsError> for HandleError {
+    fn from(err: ParamsError) -> HandleError {
+        HandleError::FormParameter
+    }
+}
+
+impl<'a> From<PoisonError<MutexGuard<'a, Connection>>> for HandleError {
+    fn from(err: PoisonError<MutexGuard<'a, Connection>>) -> HandleError {
+        HandleError::Mutex
+    }
+}
 
 enum PriceCategory {
     Student,
@@ -20,7 +55,7 @@ enum PriceCategory {
 struct Registration {
     last_name: String,
     first_name: String,
-    institutuion: String,
+    institution: String,
     street: String,
     street_no: String,
     zip_code: String,
@@ -45,45 +80,68 @@ pub fn handle_main(req: &mut Request) -> IronResult<Response> {
 }
 
 pub fn handle_submit(req: &mut Request) -> IronResult<Response> {
-    let map = req.get_ref::<Params>().unwrap();
+    let mut message: BTreeMap<String, Json> = BTreeMap::new();
+
+    match handle_form_data(req) {
+        Ok(_) => {
+            info!("Data handled successfully");
+            message.insert("message".to_string(), "Ihre Anmeldung war erfolgreich".to_json());
+        }
+        Err(_) => {
+            error!("Error while processing data");
+            message.insert("message".to_string(), "Ein Fehler ist aufgetreten. Bitte versuchen Sie es später noch einmal.".to_json());
+        }
+    }
     
     let mut resp = Response::new();
 
-    info!("handle_submit: {:?}", map);
-
-    match map2Registration(map) {
-        Some(registration) => insert_to_db(registration),
-        None => info!("Registration invalid...")
-    }
-    
-    let mut data : BTreeMap<String, Json> = BTreeMap::new();
-    resp.set_mut(Template::new("submit", data)).set_mut(status::Ok);
+    resp.set_mut(Template::new("submit", message)).set_mut(status::Ok);
     Ok(resp)
 }
 
-fn map2Registration(map: &Map) -> Option<Registration> {
-    let mut result = Registration{
-        last_name: "".to_string(),
-        first_name: "".to_string(),
-        institutuion: "".to_string(),
-        street: "".to_string(),
-        street_no: "".to_string(),
-        zip_code: "".to_string(),
-        city: "".to_string(),
-        phone: "".to_string(),
-        e_mail: "".to_string(),
-        more_info: "".to_string(),
-        price_category: PriceCategory::Student,
-    };
+fn handle_form_data(req: &mut Request) -> Result<(), HandleError> {
+    let map = try!(req.get::<Params>());
     
-    match map.find(&["last_name"]) {
-        Some(&Value::String(ref last_name)) => result.last_name = last_name.to_string(),
-        _ => return None
-    }
+    info!("handle_submit: {:?}", map);
+
+    let registration = try!(map2registration(map));
+
+    let mutex = try!(req.get::<Write<DBConnection>>());
+
+    let db_connection = try!(mutex.lock());
     
-    Some(result)
+    try!(insert_to_db(&*db_connection, registration));
+
+    Ok(())
 }
 
-fn insert_to_db(registration: Registration) {
+fn extract_string(map: &Map, key: &str) -> Result<String, HandleError> {
+    match map.find(&[key]) {
+        Some(&Value::String(ref value)) => Ok(value.to_string()),
+        _ => Err(HandleError::FormValue)
+    }
+}
+
+fn map2registration(map: Map) -> Result<Registration, HandleError> {
+    let result = Registration{
+        last_name: try!(extract_string(&map, "last_name")),
+        first_name: try!(extract_string(&map, "first_name")),
+        institution: try!(extract_string(&map, "institution")),
+        street: try!(extract_string(&map, "street")),
+        street_no: try!(extract_string(&map, "street_no")),
+        zip_code: try!(extract_string(&map, "zip_code")),
+        city: try!(extract_string(&map, "city")),
+        phone: try!(extract_string(&map, "phone")),
+        e_mail: try!(extract_string(&map, "e_mail")),
+        more_info: try!(extract_string(&map, "more_info")),
+        price_category: if try!(extract_string(&map, "price_category")) == "student".to_string() { PriceCategory::Student }
+        else { PriceCategory::Regular }
+    };
+
+    Ok(result)
+}
+
+fn insert_to_db(db_connection: &Connection, registration: Registration) -> Result<(), HandleError> {
     // TODO
+    Ok(())
 }
