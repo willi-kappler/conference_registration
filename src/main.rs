@@ -10,6 +10,7 @@ extern crate plugin;
 #[macro_use] extern crate log;
 extern crate simplelog;
 extern crate persistent;
+extern crate lettre;
 
 // System modules
 
@@ -27,7 +28,7 @@ use staticfile::Static;
 use rusqlite::Connection;
 use handlebars_iron::{HandlebarsEngine, DirectorySource};
 use simplelog::{FileLogger, LogLevelFilter};
-use persistent::Write;
+use persistent::{Read, Write};
 
 
 // Local modules
@@ -35,12 +36,14 @@ use persistent::Write;
 mod config;
 mod handler;
 
-use config::load_configuration;
+use config::{load_configuration, Configuration};
 use handler::{handle_main, handle_submit};
 
 pub struct DBConnection;
 
 impl Key for DBConnection { type Value = Connection; }
+
+impl Key for Configuration { type Value = Configuration; }
 
 fn main() {
 
@@ -49,9 +52,9 @@ fn main() {
 
     let _ = FileLogger::init(LogLevelFilter::Info, File::create("registration.log").unwrap());
     
-    let config = load_configuration("");
+    let config = load_configuration("registration_config.txt");
 
-    let db_conn = Connection::open(config.db_filename).unwrap();
+    let db_conn = Connection::open(&config.db_filename).unwrap();
 
     let mut hbse = HandlebarsEngine::new();
     hbse.add(Box::new(DirectorySource::new(&config.template_folder, ".hbs")));
@@ -78,6 +81,9 @@ fn main() {
 
     let mut chain2 = Chain::new(chain1);
     chain2.link(Write::<DBConnection>::both(db_conn));
+
+    let mut chain3 = Chain::new(chain2);
+    chain3.link(Read::<Configuration>::both(config.clone()));
     
-    Iron::new(chain2).http(config.socket_addr).unwrap();
+    Iron::new(chain3).http(&config.socket_addr).unwrap();
 }

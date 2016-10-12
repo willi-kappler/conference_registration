@@ -1,23 +1,26 @@
 use std::collections::BTreeMap;
+use std::sync::{PoisonError, MutexGuard};
 
 use iron::prelude::{Request, IronResult, Response, Set};
 use iron::status;
 
 use handlebars_iron::{Template};
-
 use rustc_serialize::json::{Json, ToJson};
-
 use params::{Params, Value, Map, ParamsError};
-
 use plugin::Pluggable;
-
-use persistent::{Write, PersistentError};
-
+use persistent::{Read, Write, PersistentError};
 use rusqlite::Connection;
+use rusqlite;
 
-use std::sync::{PoisonError, MutexGuard};
+use lettre::email::EmailBuilder;
+use lettre::transport::smtp::{SecurityLevel, SmtpTransport,
+SmtpTransportBuilder};
+use lettre::transport::smtp::authentication::Mechanism;
+use lettre::transport::smtp::SUBMISSION_PORT;
+use lettre::transport::EmailTransport;
 
 use ::DBConnection;
+use config::Configuration;
 
 
 #[derive(Debug)]
@@ -26,32 +29,41 @@ pub enum HandleError {
     FormValue,
     Persistent,
     Mutex,
-    DBSend
+    DBSend,
+    SQL
 }
 
 impl From<PersistentError> for HandleError {
-    fn from(err: PersistentError) -> HandleError {
+    fn from(_: PersistentError) -> HandleError {
         HandleError::Persistent
     }
 }
 
 impl From<ParamsError> for HandleError {
-    fn from(err: ParamsError) -> HandleError {
+    fn from(_: ParamsError) -> HandleError {
         HandleError::FormParameter
     }
 }
 
 impl<'a> From<PoisonError<MutexGuard<'a, Connection>>> for HandleError {
-    fn from(err: PoisonError<MutexGuard<'a, Connection>>) -> HandleError {
+    fn from(_: PoisonError<MutexGuard<'a, Connection>>) -> HandleError {
         HandleError::Mutex
     }
 }
 
+impl From<rusqlite::Error> for HandleError {
+    fn from(_: rusqlite::Error) -> HandleError {
+        HandleError::SQL
+    }
+}
+
+#[derive(Debug, PartialEq)]
 enum PriceCategory {
     Student,
     Regular
 }
 
+#[derive(Debug, PartialEq)]
 struct Registration {
     last_name: String,
     first_name: String,
@@ -74,7 +86,7 @@ pub fn handle_main(req: &mut Request) -> IronResult<Response> {
 
     info!("handle_main: {:?}", map);
     
-    let mut data : BTreeMap<String, Json> = BTreeMap::new();
+    let data : BTreeMap<String, Json> = BTreeMap::new();
     resp.set_mut(Template::new("index", data)).set_mut(status::Ok);
     Ok(resp)
 }
@@ -110,8 +122,12 @@ fn handle_form_data(req: &mut Request) -> Result<(), HandleError> {
 
     let db_connection = try!(mutex.lock());
     
-    try!(insert_to_db(&*db_connection, registration));
+    try!(insert_to_db(&*db_connection, &registration));
 
+    let config = try!(req.get::<Read<Configuration>>());
+    
+    try!(send_mail(&registration.e_mail, &config));
+    
     Ok(())
 }
 
@@ -141,7 +157,42 @@ fn map2registration(map: Map) -> Result<Registration, HandleError> {
     Ok(result)
 }
 
-fn insert_to_db(db_connection: &Connection, registration: Registration) -> Result<(), HandleError> {
-    // TODO
+fn insert_to_db(db_connection: &Connection, registration: &Registration) -> Result<(), HandleError> {
+    let price_category = if registration.price_category == PriceCategory::Student { "student".to_string() } else { "regular".to_string() };
+        
+    try!(db_connection.execute("
+         INSERT INTO registration (
+           last_name,
+           first_name,
+           institution,
+           street,
+           street_no,
+           zip_code,
+           city,
+           phone,
+           e_mail,
+           more_info,
+           price_category
+         ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+         ",&[
+             &registration.last_name,
+             &registration.first_name,
+             &registration.institution,
+             &registration.street,
+             &registration.street_no,
+             &registration.zip_code,
+             &registration.city,
+             &registration.phone,
+             &registration.e_mail,
+             &registration.more_info,
+             &price_category
+         ]));
+
+    
+    Ok(())
+}
+
+fn send_mail(email_address: &str, config: &Configuration) -> Result<(), HandleError> {
+
     Ok(())
 }
