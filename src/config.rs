@@ -5,7 +5,7 @@ use std::num::ParseIntError;
 use ini::Ini;
 use ini;
 
-#[derive(Clone)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct Configuration {
     pub host: String,
     pub port: u16,
@@ -19,6 +19,7 @@ pub struct Configuration {
     pub email_password: String
 }
 
+#[derive(Debug)]
 pub enum ConfigError {
     Ini,
     Value,
@@ -73,4 +74,59 @@ pub fn load_configuration(file_name: &str) -> Result<Configuration, ConfigError>
         email_username: email_username.to_string(),
         email_password: email_password.to_string()
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{load_configuration, Configuration};
+    use std::io::BufWriter;
+    use std::fs::OpenOptions;
+    use std::io::prelude::Write;
+    use std::net::{SocketAddrV4, Ipv4Addr};
+    use std::str::FromStr;
+    
+    #[test]
+    fn test_load_configuration1() {
+        let file_name = "test_config1.ini";
+
+        {
+            let mut buffer = BufWriter::new(
+                OpenOptions::new()
+                    .write(true)
+                    .create(true)
+                    .open(file_name).unwrap());
+
+            write!(buffer, "
+                [Basic]
+                host = 127.0.0.1
+                port = 1234
+                db_filename = my_db.sql
+                template_folder = template
+
+                [EMail]
+                from = bob@smith.com
+                server = some.smtp.com
+                hello = my.server.org
+                username = bob
+                password = secret
+            ").unwrap();
+        }
+
+        let config = load_configuration("test_config1.ini").unwrap();
+
+        let expected = Configuration {
+            host: "127.0.0.1".to_string(),
+            port: 1234,
+            socket_addr: SocketAddrV4::new(Ipv4Addr::from_str("127.0.0.1").unwrap(), 1234),
+            db_filename: "my_db.sql".to_string(),
+            template_folder: "template".to_string(),
+            email_from: "bob@smith.com".to_string(),
+            email_server: "some.smtp.com".to_string(),
+            email_hello: "my.server.org".to_string(),
+            email_username: "bob".to_string(),
+            email_password: "secret".to_string()
+        };
+
+        assert_eq!(config, expected);
+    }
 }

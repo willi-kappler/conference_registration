@@ -159,7 +159,7 @@ fn handle_form_data(req: &mut Request) -> Result<(), HandleError> {
 
     let db_connection = try!(mutex.lock());
     
-    try!(insert_to_db(&*db_connection, &registration));
+    try!(insert_into_db(&*db_connection, &registration));
 
     let config = try!(req.get::<Read<Configuration>>());
     
@@ -198,7 +198,7 @@ fn map2registration(map: Map) -> Result<Registration, HandleError> {
     Ok(result)
 }
 
-fn insert_to_db(db_connection: &Connection, registration: &Registration) -> Result<(), HandleError> {
+fn insert_into_db(db_connection: &Connection, registration: &Registration) -> Result<(), HandleError> {
     let title = if registration.title == Title::Sir { "sir".to_string() } else { "madam".to_string() };
     let price_category = if registration.price_category == PriceCategory::Student { "student".to_string() } else { "regular".to_string() };
     let course_type = if registration.course_type == Course::Course1 { "course1".to_string() } else { "course2".to_string() };
@@ -269,4 +269,175 @@ fn send_mail(registration: &Registration, config: &Configuration) -> Result<(), 
     try!(mailer.send(email));
     
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{extract_string, map2registration, insert_into_db, send_mail, Registration, PriceCategory, Title, Course};
+    use params::{Value, Map};
+
+    #[test]
+    fn test_extract_string() {
+        let mut map = Map::new();
+        map.assign("name", Value::String("Bob".into())).unwrap();
+        let result = extract_string(&map, "name").unwrap();
+
+        assert_eq!(result, "Bob".to_string());
+    }
+
+    #[test]
+    fn test_map2registration1() {
+        let mut map = Map::new();
+        map.assign("title", Value::String("sir".into())).unwrap();
+        map.assign("last_name", Value::String("Smith".into())).unwrap();
+        map.assign("first_name", Value::String("Bob".into())).unwrap();
+        map.assign("institution", Value::String("Some university".into())).unwrap();
+        map.assign("street", Value::String("some_street".into())).unwrap();
+        map.assign("street_no", Value::String("12".into())).unwrap();
+        map.assign("zip_code", Value::String("12345".into())).unwrap();
+        map.assign("city", Value::String("some_city".into())).unwrap();
+        map.assign("phone", Value::String("1234567890".into())).unwrap();
+        map.assign("email_to", Value::String("bob@smith.com".into())).unwrap();
+        map.assign("more_info", Value::String("Some more information".into())).unwrap();
+        map.assign("price_category", Value::String("student".into())).unwrap();
+        map.assign("course_type", Value::String("course1".into())).unwrap();
+
+        let result = map2registration(map).unwrap();
+        let expected = Registration{
+            title: Title::Sir,
+            last_name: "Smith".to_string(),
+            first_name: "Bob".to_string(),
+            institution: "Some university".to_string(),
+            street: "some_street".to_string(),
+            street_no: "12".to_string(),
+            zip_code: "12345".to_string(),
+            city: "some_city".to_string(),
+            phone: "1234567890".to_string(),
+            email_to: "bob@smith.com".to_string(),
+            more_info: "Some more information".to_string(),
+            price_category: PriceCategory::Student,
+            course_type: Course::Course1
+        };
+        
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn test_map2registration2() {
+        let mut map = Map::new();
+        map.assign("title", Value::String("madam".into())).unwrap();
+        map.assign("last_name", Value::String("Smith".into())).unwrap();
+        map.assign("first_name", Value::String("Alice".into())).unwrap();
+        map.assign("institution", Value::String("Some university".into())).unwrap();
+        map.assign("street", Value::String("some_street".into())).unwrap();
+        map.assign("street_no", Value::String("15".into())).unwrap();
+        map.assign("zip_code", Value::String("11111".into())).unwrap();
+        map.assign("city", Value::String("some_city".into())).unwrap();
+        map.assign("phone", Value::String("999999999".into())).unwrap();
+        map.assign("email_to", Value::String("alice@smith.com".into())).unwrap();
+        map.assign("more_info", Value::String("Some more information".into())).unwrap();
+        map.assign("price_category", Value::String("student".into())).unwrap();
+        map.assign("course_type", Value::String("course1".into())).unwrap();
+
+        let result = map2registration(map).unwrap();
+        let expected = Registration{
+            title: Title::Madam,
+            last_name: "Smith".to_string(),
+            first_name: "Alice".to_string(),
+            institution: "Some university".to_string(),
+            street: "some_street".to_string(),
+            street_no: "15".to_string(),
+            zip_code: "11111".to_string(),
+            city: "some_city".to_string(),
+            phone: "999999999".to_string(),
+            email_to: "alice@smith.com".to_string(),
+            more_info: "Some more information".to_string(),
+            price_category: PriceCategory::Student,
+            course_type: Course::Course1
+        };
+        
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn test_map2registration3() {
+        let mut map = Map::new();
+        map.assign("title", Value::String("sir".into())).unwrap();
+        map.assign("last_name", Value::String("Brown".into())).unwrap();
+        map.assign("first_name", Value::String("Tim".into())).unwrap();
+        map.assign("institution", Value::String("Some university".into())).unwrap();
+        map.assign("street", Value::String("some_street".into())).unwrap();
+        map.assign("street_no", Value::String("12".into())).unwrap();
+        map.assign("zip_code", Value::String("12345".into())).unwrap();
+        map.assign("city", Value::String("some_city".into())).unwrap();
+        map.assign("phone", Value::String("1234567890".into())).unwrap();
+        map.assign("email_to", Value::String("bob@smith.com".into())).unwrap();
+        map.assign("more_info", Value::String("Some more information".into())).unwrap();
+        map.assign("price_category", Value::String("regular".into())).unwrap();
+        map.assign("course_type", Value::String("course1".into())).unwrap();
+
+        let result = map2registration(map).unwrap();
+        let expected = Registration{
+            title: Title::Sir,
+            last_name: "Brown".to_string(),
+            first_name: "Tim".to_string(),
+            institution: "Some university".to_string(),
+            street: "some_street".to_string(),
+            street_no: "12".to_string(),
+            zip_code: "12345".to_string(),
+            city: "some_city".to_string(),
+            phone: "1234567890".to_string(),
+            email_to: "bob@smith.com".to_string(),
+            more_info: "Some more information".to_string(),
+            price_category: PriceCategory::Regular,
+            course_type: Course::Course1
+        };
+        
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn test_map2registration4() {
+        let mut map = Map::new();
+        map.assign("title", Value::String("sir".into())).unwrap();
+        map.assign("last_name", Value::String("Smith".into())).unwrap();
+        map.assign("first_name", Value::String("Bob".into())).unwrap();
+        map.assign("institution", Value::String("Some university".into())).unwrap();
+        map.assign("street", Value::String("some_street".into())).unwrap();
+        map.assign("street_no", Value::String("12".into())).unwrap();
+        map.assign("zip_code", Value::String("12345".into())).unwrap();
+        map.assign("city", Value::String("some_city".into())).unwrap();
+        map.assign("phone", Value::String("1234567890".into())).unwrap();
+        map.assign("email_to", Value::String("bob@smith.com".into())).unwrap();
+        map.assign("more_info", Value::String("Some more information".into())).unwrap();
+        map.assign("price_category", Value::String("student".into())).unwrap();
+        map.assign("course_type", Value::String("course2".into())).unwrap();
+
+        let result = map2registration(map).unwrap();
+        let expected = Registration{
+            title: Title::Sir,
+            last_name: "Smith".to_string(),
+            first_name: "Bob".to_string(),
+            institution: "Some university".to_string(),
+            street: "some_street".to_string(),
+            street_no: "12".to_string(),
+            zip_code: "12345".to_string(),
+            city: "some_city".to_string(),
+            phone: "1234567890".to_string(),
+            email_to: "bob@smith.com".to_string(),
+            more_info: "Some more information".to_string(),
+            price_category: PriceCategory::Student,
+            course_type: Course::Course2
+        };
+        
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn test_insert_into_db() {
+    }
+
+    #[test]
+    fn test_send_mail() {
+    }
 }
