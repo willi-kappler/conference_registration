@@ -11,6 +11,7 @@ extern crate plugin;
 extern crate simplelog;
 extern crate persistent;
 extern crate lettre;
+extern crate ini;
 
 // System modules
 
@@ -46,13 +47,13 @@ impl Key for DBConnection { type Value = Connection; }
 impl Key for Configuration { type Value = Configuration; }
 
 fn main() {
-
-    // TODO: look at persistent:
-    // https://github.com/iron/persistent/blob/master/examples/hitcounter.rs
-
     let _ = FileLogger::init(LogLevelFilter::Info, File::create("registration.log").unwrap());
-    
-    let config = load_configuration("registration_config.txt");
+
+    let config_file = "registration_config.ini";
+    let config = match load_configuration(config_file) {
+        Ok(configuration) => configuration,
+        Err(_) => panic!("Could not open configuration file: '{}'", config_file)
+    };
 
     let db_conn = Connection::open(&config.db_filename).unwrap();
 
