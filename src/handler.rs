@@ -136,8 +136,8 @@ pub fn handle_submit(req: &mut Request) -> IronResult<Response> {
             info!("Data handled successfully");
             message.insert("message".to_string(), "Ihre Anmeldung war erfolgreich".to_json());
         }
-        Err(_) => {
-            error!("Error while processing data");
+        Err(e) => {
+            error!("Error while processing data: {:?}", e);
             message.insert("message".to_string(), "Ein Fehler ist aufgetreten. Bitte versuchen Sie es später noch einmal.".to_json());
         }
     }
@@ -252,6 +252,7 @@ fn send_mail(registration: &Registration, config: &Configuration) -> Result<(), 
     let email = try!(EmailBuilder::new()
                     .to(email_to)
                     .from(email_from)
+                    .cc(email_from)
                     .body(&body)
                     .subject(&subject)
                     .build());
