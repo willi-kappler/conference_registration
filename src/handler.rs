@@ -274,8 +274,14 @@ fn send_mail(registration: &Registration, config: &Configuration) -> Result<(), 
 #[cfg(test)]
 mod tests {
     use super::{extract_string, map2registration, insert_into_db, send_mail, Registration, PriceCategory, Title, Course};
+    use config::{load_configuration, Configuration};
     use params::{Value, Map};
 
+    use rusqlite::Connection;
+
+    use std::net::{SocketAddrV4, Ipv4Addr};
+    use std::str::FromStr;
+    
     #[test]
     fn test_extract_string() {
         let mut map = Map::new();
@@ -434,10 +440,127 @@ mod tests {
     }
 
     #[test]
-    fn test_insert_into_db() {
+    fn test_insert_into_db1() {
+        let conn = Connection::open_in_memory().unwrap();
+        let reg = Registration {
+            title: Title::Sir,
+            last_name: "Smith".to_string(),
+            first_name: "Bob".to_string(),
+            institution: "Some university".to_string(),
+            street: "Somestreet".to_string(),
+            street_no: "15".to_string(),
+            zip_code: "12345".to_string(),
+            city: "Somewhere".to_string(),
+            phone: "123456789".to_string(),
+            email_to: "bob.smith@somewhere.com".to_string(),
+            more_info: "Some more information".to_string(),
+            price_category: PriceCategory::Student,
+            course_type: Course::Course1
+        };
+
+        conn.execute("CREATE TABLE registration (
+                  id              INTEGER PRIMARY KEY,
+                  title           TEXT NOT NULL,
+                  last_name       TEXT NOT NULL,
+                  first_name      TEXT NOT NULL,
+                  institution     TEXT NOT NULL,
+                  street          TEXT NOT NULL,
+                  street_no       TEXT NOT NULL,
+                  zip_code        TEXT NOT NULL,
+                  city            TEXT NOT NULL,
+                  phone           TEXT NOT NULL,
+                  email_to        TEXT NOT NULL,
+                  more_info       TEXT NOT NULL,
+                  price_category  TEXT NOT NULL,
+                  course_type     Text NOT NULL
+                  )", &[]).unwrap();
+
+        assert!(insert_into_db(&conn, &reg).is_ok());
+
+        let mut stmt = conn.prepare("SELECT * FROM registration").unwrap();
+        let mut rows = stmt.query(&[]).unwrap();
+        let result = rows.next().unwrap().unwrap();
+
+        assert_eq!(result.get::<i32, i32>(0), 1);
+        assert_eq!(result.get::<i32, String>(1), "sir");
+        assert_eq!(result.get::<i32, String>(2), "Smith");
+        assert_eq!(result.get::<i32, String>(3), "Bob");
+        assert_eq!(result.get::<i32, String>(4), "Some university");
+        assert_eq!(result.get::<i32, String>(5), "Somestreet");
+        assert_eq!(result.get::<i32, String>(6), "15");
+        assert_eq!(result.get::<i32, String>(7), "12345");
+        assert_eq!(result.get::<i32, String>(8), "Somewhere");
+        assert_eq!(result.get::<i32, String>(9), "123456789");
+        assert_eq!(result.get::<i32, String>(10), "bob.smith@somewhere.com");
+        assert_eq!(result.get::<i32, String>(11), "Some more information");
+        assert_eq!(result.get::<i32, String>(12), "student");
+        assert_eq!(result.get::<i32, String>(13), "course1");
+    }
+
+    #[test]
+    fn test_insert_into_db2() {
+        let conn = Connection::open("registration_database.sqlite3").unwrap();
+        let reg = Registration {
+            title: Title::Sir,
+            last_name: "Smith".to_string(),
+            first_name: "Bob".to_string(),
+            institution: "Some university".to_string(),
+            street: "Somestreet".to_string(),
+            street_no: "15".to_string(),
+            zip_code: "12345".to_string(),
+            city: "Somewhere".to_string(),
+            phone: "123456789".to_string(),
+            email_to: "bob.smith@somewhere.com".to_string(),
+            more_info: "Some more information".to_string(),
+            price_category: PriceCategory::Student,
+            course_type: Course::Course2
+        };
+
+        assert!(insert_into_db(&conn, &reg).is_ok());
+
+        let mut stmt = conn.prepare("SELECT * FROM registration WHERE city = 'Somewhere'").unwrap();
+        let mut rows = stmt.query(&[]).unwrap();
+        let result = rows.next().unwrap().unwrap();
+
+        assert_eq!(result.get::<i32, String>(1), "sir");
+        assert_eq!(result.get::<i32, String>(2), "Smith");
+        assert_eq!(result.get::<i32, String>(3), "Bob");
+        assert_eq!(result.get::<i32, String>(4), "Some university");
+        assert_eq!(result.get::<i32, String>(5), "Somestreet");
+        assert_eq!(result.get::<i32, String>(6), "15");
+        assert_eq!(result.get::<i32, String>(7), "12345");
+        assert_eq!(result.get::<i32, String>(8), "Somewhere");
+        assert_eq!(result.get::<i32, String>(9), "123456789");
+        assert_eq!(result.get::<i32, String>(10), "bob.smith@somewhere.com");
+        assert_eq!(result.get::<i32, String>(11), "Some more information");
+        assert_eq!(result.get::<i32, String>(12), "student");
+        assert_eq!(result.get::<i32, String>(13), "course2");
+
+        conn.execute("DELETE FROM registration WHERE city = 'Somewhere';", &[]).unwrap();
     }
 
     #[test]
     fn test_send_mail() {
+
+        let config1 = load_configuration("test_config2.ini").unwrap();
+        
+        let reg = Registration {
+            title: Title::Sir,
+            last_name: "Smith".to_string(),
+            first_name: "Bob".to_string(),
+            institution: "Some university".to_string(),
+            street: "Somestreet".to_string(),
+            street_no: "15".to_string(),
+            zip_code: "12345".to_string(),
+            city: "Somewhere".to_string(),
+            phone: "123456789".to_string(),
+            email_to: "bob.smith@somewhere.com".to_string(),
+            more_info: "Some more information".to_string(),
+            price_category: PriceCategory::Student,
+            course_type: Course::Course2
+        };
+
+
+        
     }
 }
