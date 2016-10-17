@@ -240,11 +240,11 @@ fn insert_into_db(db_connection: &Connection, registration: &Registration) -> Re
 }
 
 fn send_mail(registration: &Registration, config: &Configuration) -> Result<(), HandleError> {
-    let course = if registration.course_type == Course::Course1 { "3. März 2017" } else { "22. September 2017" };
-    let subject = format!("Anmeldungsbestätigung: TGAG Fortbildung - {}", course);
+    let course = if registration.course_type == Course::Course1 { "3. Maerz 2017" } else { "22. September 2017" };
+    let subject = format!("Anmeldungsbestaetigung: TGAG Fortbildung - {}", course);
     let greeting = if registration.title == Title::Sir { format!("Sehr geehrter Herr {},", registration.last_name) } else { format!("Sehr geehrte Frau {},", registration.last_name) };
-    let price = if registration.price_category == PriceCategory::Student { "Student".to_string() } else { "Regulär".to_string() };
-    let body = format!("{}\n Sie haben sich für den folgenden Kurs angemeldet:\n Zeitpunkt: {}\n Kategorie: {}\n\nMit freundlichen Grüßen,\ndie Fortbildungsorganisation", greeting, course, price);
+    let price = if registration.price_category == PriceCategory::Student { "Student".to_string() } else { "Regulaer".to_string() };
+    let body = format!("{}\n\nSie haben sich fuer den folgenden Kurs angemeldet:\n\n Zeitpunkt: {}\n Kategorie: {}\n\nMit freundlichen Gruessen,\ndie Fortbildungsorganisation", greeting, course, price);
 
     let email_to = registration.email_to.as_str();
     let email_from = config.email_from.as_str();
@@ -274,13 +274,11 @@ fn send_mail(registration: &Registration, config: &Configuration) -> Result<(), 
 #[cfg(test)]
 mod tests {
     use super::{extract_string, map2registration, insert_into_db, send_mail, Registration, PriceCategory, Title, Course};
-    use config::{load_configuration, Configuration};
+    use config::{load_configuration};
     use params::{Value, Map};
 
     use rusqlite::Connection;
 
-    use std::net::{SocketAddrV4, Ipv4Addr};
-    use std::str::FromStr;
     
     #[test]
     fn test_extract_string() {
@@ -540,9 +538,8 @@ mod tests {
     }
 
     #[test]
-    fn test_send_mail() {
-
-        let config1 = load_configuration("test_config2.ini").unwrap();
+    fn test_send_mail1() {
+        let config = load_configuration("test_config2.ini").unwrap();
         
         let reg = Registration {
             title: Title::Sir,
@@ -560,7 +557,35 @@ mod tests {
             course_type: Course::Course2
         };
 
+        let result = send_mail(&reg, &config);
 
-        
+        assert!(result.is_ok());
     }
+
+    #[test]
+    fn test_send_mail2() {
+        let config = load_configuration("test_config2.ini").unwrap();
+        
+        let reg = Registration {
+            title: Title::Madam,
+            last_name: "Smith".to_string(),
+            first_name: "Jane".to_string(),
+            institution: "Some university".to_string(),
+            street: "Somestreet".to_string(),
+            street_no: "15".to_string(),
+            zip_code: "12345".to_string(),
+            city: "Somewhere".to_string(),
+            phone: "123456789".to_string(),
+            email_to: "bob.smith@somewhere.com".to_string(),
+            more_info: "Some more information".to_string(),
+            price_category: PriceCategory::Regular,
+            course_type: Course::Course1
+        };
+
+        let result = send_mail(&reg, &config);
+
+        assert!(result.is_ok());
+    }
+
+
 }
