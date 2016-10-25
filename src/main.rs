@@ -47,13 +47,13 @@ impl Key for DBConnection { type Value = Connection; }
 impl Key for Configuration { type Value = Configuration; }
 
 fn main() {
-    let _ = FileLogger::init(LogLevelFilter::Info, File::create("registration.log").unwrap());
-
     let config_file = "registration_config.ini";
     let config = match load_configuration(config_file) {
         Ok(configuration) => configuration,
         Err(_) => panic!("Could not open configuration file: '{}'", config_file)
     };
+
+    let _ = FileLogger::init(LogLevelFilter::Info, File::create(&config.log_file).unwrap());
 
     let db_conn = Connection::open(&config.db_filename).unwrap();
 
@@ -85,6 +85,6 @@ fn main() {
 
     let mut chain3 = Chain::new(chain2);
     chain3.link(Read::<Configuration>::both(config.clone()));
-    
+
     Iron::new(chain3).http(&config.socket_addr).unwrap();
 }

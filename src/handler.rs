@@ -118,11 +118,11 @@ struct Registration {
 
 pub fn handle_main(req: &mut Request) -> IronResult<Response> {
     let map = req.get_ref::<Params>().unwrap();
-    
+
     let mut resp = Response::new();
 
     info!("handle_main: {:?}", map);
-    
+
     let data : BTreeMap<String, Json> = BTreeMap::new();
     resp.set_mut(Template::new("index", data)).set_mut(status::Ok);
     Ok(resp)
@@ -141,7 +141,7 @@ pub fn handle_submit(req: &mut Request) -> IronResult<Response> {
             message.insert("message".to_string(), "Ein Fehler ist aufgetreten. Bitte versuchen Sie es später noch einmal.".to_json());
         }
     }
-    
+
     let mut resp = Response::new();
 
     resp.set_mut(Template::new("submit", message)).set_mut(status::Ok);
@@ -150,7 +150,7 @@ pub fn handle_submit(req: &mut Request) -> IronResult<Response> {
 
 fn handle_form_data(req: &mut Request) -> Result<(), HandleError> {
     let map = try!(req.get::<Params>());
-    
+
     info!("handle_submit: {:?}", map);
 
     let registration = try!(map2registration(map));
@@ -158,13 +158,13 @@ fn handle_form_data(req: &mut Request) -> Result<(), HandleError> {
     let mutex = try!(req.get::<Write<DBConnection>>());
 
     let db_connection = try!(mutex.lock());
-    
+
     try!(insert_into_db(&*db_connection, &registration));
 
     let config = try!(req.get::<Read<Configuration>>());
-    
+
     try!(send_mail(&registration, &config));
-    
+
     Ok(())
 }
 
@@ -202,7 +202,7 @@ fn insert_into_db(db_connection: &Connection, registration: &Registration) -> Re
     let title = if registration.title == Title::Sir { "sir".to_string() } else { "madam".to_string() };
     let price_category = if registration.price_category == PriceCategory::Student { "student".to_string() } else { "regular".to_string() };
     let course_type = if registration.course_type == Course::Course1 { "course1".to_string() } else { "course2".to_string() };
-    
+
     try!(db_connection.execute("
          INSERT INTO registration (
            title,
@@ -235,7 +235,7 @@ fn insert_into_db(db_connection: &Connection, registration: &Registration) -> Re
              &course_type
          ]));
 
-    
+
     Ok(())
 }
 
@@ -248,7 +248,7 @@ fn send_mail(registration: &Registration, config: &Configuration) -> Result<(), 
 
     let email_to = registration.email_to.as_str();
     let email_from = config.email_from.as_str();
-    
+
     let email = try!(EmailBuilder::new()
                     .to(email_to)
                     .from(email_from)
@@ -258,7 +258,7 @@ fn send_mail(registration: &Registration, config: &Configuration) -> Result<(), 
                     .build());
 
     let host_ip = try!(Ipv4Addr::from_str(&config.email_server));
-    
+
     let mut mailer = try!(SmtpTransportBuilder::new((host_ip, SUBMISSION_PORT)))
         .hello_name(&config.email_hello)
         .credentials(&config.email_username, &config.email_password)
@@ -268,7 +268,7 @@ fn send_mail(registration: &Registration, config: &Configuration) -> Result<(), 
         .connection_reuse(true).build();
 
     try!(mailer.send(email));
-    
+
     Ok(())
 }
 
@@ -280,7 +280,7 @@ mod tests {
 
     use rusqlite::Connection;
 
-    
+
     #[test]
     fn test_extract_string() {
         let mut map = Map::new();
@@ -323,7 +323,7 @@ mod tests {
             price_category: PriceCategory::Student,
             course_type: Course::Course1
         };
-        
+
         assert_eq!(result, expected);
     }
 
@@ -360,7 +360,7 @@ mod tests {
             price_category: PriceCategory::Student,
             course_type: Course::Course1
         };
-        
+
         assert_eq!(result, expected);
     }
 
@@ -397,7 +397,7 @@ mod tests {
             price_category: PriceCategory::Regular,
             course_type: Course::Course1
         };
-        
+
         assert_eq!(result, expected);
     }
 
@@ -434,7 +434,7 @@ mod tests {
             price_category: PriceCategory::Student,
             course_type: Course::Course2
         };
-        
+
         assert_eq!(result, expected);
     }
 
@@ -471,7 +471,7 @@ mod tests {
                   email_to        TEXT NOT NULL,
                   more_info       TEXT NOT NULL,
                   price_category  TEXT NOT NULL,
-                  course_type     Text NOT NULL
+                  course_type     TEXT NOT NULL
                   )", &[]).unwrap();
 
         assert!(insert_into_db(&conn, &reg).is_ok());
@@ -541,7 +541,7 @@ mod tests {
     #[test]
     fn test_send_mail1() {
         let config = load_configuration("test_config2.ini").unwrap();
-        
+
         let reg = Registration {
             title: Title::Sir,
             last_name: "Smith".to_string(),
@@ -566,7 +566,7 @@ mod tests {
     #[test]
     fn test_send_mail2() {
         let config = load_configuration("test_config2.ini").unwrap();
-        
+
         let reg = Registration {
             title: Title::Madam,
             last_name: "Smith".to_string(),

@@ -10,6 +10,7 @@ pub struct Configuration {
     pub host: String,
     pub port: u16,
     pub socket_addr: SocketAddrV4,
+    pub log_file: String,
     pub db_filename: String,
     pub template_folder: String,
     pub email_from: String,
@@ -50,6 +51,7 @@ pub fn load_configuration(file_name: &str) -> Result<Configuration, ConfigError>
     let section1 = try!(ini_conf.section(Some("Basic")).ok_or(ConfigError::Ini));
     let host = try!(section1.get("host").ok_or(ConfigError::Ini));
     let port = try!(try!(section1.get("port").ok_or(ConfigError::Ini)).parse::<u16>());
+    let log_file = try!(section1.get("log_file").ok_or(ConfigError::Ini));
     let db_filename = try!(section1.get("db_filename").ok_or(ConfigError::Ini));
     let template_folder = try!(section1.get("template_folder").ok_or(ConfigError::Ini));
     let host_ip = try!(Ipv4Addr::from_str(&host));
@@ -61,11 +63,12 @@ pub fn load_configuration(file_name: &str) -> Result<Configuration, ConfigError>
     let email_hello = try!(section2.get("hello").ok_or(ConfigError::Ini));
     let email_username = try!(section2.get("username").ok_or(ConfigError::Ini));
     let email_password = try!(section2.get("password").ok_or(ConfigError::Ini));
-    
+
     Ok(Configuration {
         host: host.to_string(),
         port: port,
         socket_addr: socket_addr,
+        log_file: log_file.to_string(),
         db_filename: db_filename.to_string(),
         template_folder: template_folder.to_string(),
         email_from: email_from.to_string(),
@@ -84,7 +87,7 @@ mod tests {
     use std::io::prelude::Write;
     use std::net::{SocketAddrV4, Ipv4Addr};
     use std::str::FromStr;
-    
+
     #[test]
     fn test_load_configuration1() {
         let file_name = "test_config1.ini";
@@ -97,18 +100,19 @@ mod tests {
                     .open(file_name).unwrap());
 
             write!(buffer, "
-                [Basic]
-                host = 127.0.0.1
-                port = 1234
-                db_filename = my_db.sql
-                template_folder = template
+[Basic]
+host = 127.0.0.1
+port = 1234
+log_file = registration.log
+db_filename = my_db.sql
+template_folder = template
 
-                [EMail]
-                from = bob@smith.com
-                server = some.smtp.com
-                hello = my.server.org
-                username = bob
-                password = secret
+[EMail]
+from = bob@smith.com
+server = some.smtp.com
+hello = my.server.org
+username = bob
+password = secret
             ").unwrap();
         }
 
@@ -118,6 +122,7 @@ mod tests {
             host: "127.0.0.1".to_string(),
             port: 1234,
             socket_addr: SocketAddrV4::new(Ipv4Addr::from_str("127.0.0.1").unwrap(), 1234),
+            log_file: "registration.log".to_string(),
             db_filename: "my_db.sql".to_string(),
             template_folder: "template".to_string(),
             email_from: "bob@smith.com".to_string(),
