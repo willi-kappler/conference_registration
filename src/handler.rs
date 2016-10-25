@@ -25,7 +25,7 @@ use ::DBConnection;
 use config::Configuration;
 
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum HandleError {
     FormParameter,
     FormValue,
@@ -274,7 +274,8 @@ fn send_mail(registration: &Registration, config: &Configuration) -> Result<(), 
 
 #[cfg(test)]
 mod tests {
-    use super::{extract_string, map2registration, insert_into_db, send_mail, Registration, PriceCategory, Title, Course};
+    use super::{extract_string, map2registration, insert_into_db, send_mail,
+        Registration, PriceCategory, Title, Course, HandleError};
     use config::{load_configuration};
     use params::{Value, Map};
 
@@ -560,7 +561,7 @@ mod tests {
 
         let result = send_mail(&reg, &config);
 
-        assert!(result.is_ok());
+        assert_eq!(result, Err(HandleError::SMTP));
     }
 
     #[test]
@@ -585,7 +586,7 @@ mod tests {
 
         let result = send_mail(&reg, &config);
 
-        assert!(result.is_ok());
+        assert_eq!(result, Err(HandleError::SMTP));
     }
 
 
