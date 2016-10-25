@@ -38,7 +38,7 @@ mod config;
 mod handler;
 
 use config::{load_configuration, Configuration};
-use handler::{handle_main, handle_submit};
+use handler::{handle_main, handle_submit, handle_login};
 
 pub struct DBConnection;
 
@@ -68,6 +68,9 @@ fn main() {
 
     router.get("/", handle_main, "index");
     router.post("/", handle_main, "index");
+
+    router.get("/login", handle_login, "login");
+    router.post("/login", handle_login, "login");
 
     router.get("/submit", handle_submit, "submit");
     router.post("/submit", handle_submit, "submit");

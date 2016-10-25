@@ -148,6 +148,18 @@ pub fn handle_submit(req: &mut Request) -> IronResult<Response> {
     Ok(resp)
 }
 
+pub fn handle_login(req: &mut Request) -> IronResult<Response> {
+    let map = req.get_ref::<Params>().unwrap();
+
+    let mut resp = Response::new();
+
+    info!("handle_main: {:?}", map);
+
+    let data : BTreeMap<String, Json> = BTreeMap::new();
+    resp.set_mut(Template::new("login", data)).set_mut(status::Ok);
+    Ok(resp)
+}
+
 fn handle_form_data(req: &mut Request) -> Result<(), HandleError> {
     let map = try!(req.get::<Params>());
 

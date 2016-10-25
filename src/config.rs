@@ -13,6 +13,8 @@ pub struct Configuration {
     pub log_file: String,
     pub login_user: String,
     pub login_passwd: String,
+    pub cookie_key: String,
+    pub cookie_max_age: u32,
     pub db_filename: String,
     pub template_folder: String,
     pub email_from: String,
@@ -56,6 +58,8 @@ pub fn load_configuration(file_name: &str) -> Result<Configuration, ConfigError>
     let log_file = try!(section1.get("log_file").ok_or(ConfigError::Ini));
     let login_user = try!(section1.get("login_user").ok_or(ConfigError::Ini));
     let login_passwd = try!(section1.get("login_passwd").ok_or(ConfigError::Ini));
+    let cookie_key = try!(section1.get("cookie_key").ok_or(ConfigError::Ini));
+    let cookie_max_age = try!(try!(section1.get("cookie_max_age").ok_or(ConfigError::Ini)).parse::<u32>());
     let db_filename = try!(section1.get("db_filename").ok_or(ConfigError::Ini));
     let template_folder = try!(section1.get("template_folder").ok_or(ConfigError::Ini));
     let host_ip = try!(Ipv4Addr::from_str(&host));
@@ -75,6 +79,8 @@ pub fn load_configuration(file_name: &str) -> Result<Configuration, ConfigError>
         log_file: log_file.to_string(),
         login_user: login_user.to_string(),
         login_passwd: login_passwd.to_string(),
+        cookie_key: cookie_key.to_string(),
+        cookie_max_age: cookie_max_age,
         db_filename: db_filename.to_string(),
         template_folder: template_folder.to_string(),
         email_from: email_from.to_string(),
@@ -112,6 +118,8 @@ port = 1234
 log_file = registration.log
 login_user = joe
 login_passwd = 12345
+cookie_key = abcdefg
+cookie_max_age = 3600
 db_filename = my_db.sql
 template_folder = template
 
@@ -133,6 +141,8 @@ password = secret
             log_file: "registration.log".to_string(),
             login_user: "joe".to_string(),
             login_passwd: "12345".to_string(),
+            cookie_key: "abcdefg".to_string(),
+            cookie_max_age: 3600,
             db_filename: "my_db.sql".to_string(),
             template_folder: "template".to_string(),
             email_from: "bob@smith.com".to_string(),
