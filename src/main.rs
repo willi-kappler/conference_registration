@@ -12,12 +12,12 @@ extern crate simplelog;
 extern crate persistent;
 extern crate lettre;
 extern crate ini;
+extern crate chrono;
 
 // System modules
 
 use std::error::Error;
 use std::path::Path;
-//use std::fs::File;
 use std::fs::OpenOptions;
 
 // External modules
@@ -31,6 +31,7 @@ use rusqlite::Connection;
 use handlebars_iron::{HandlebarsEngine, DirectorySource};
 use simplelog::{FileLogger, LogLevelFilter};
 use persistent::{Read, Write};
+use chrono::Local;
 
 
 // Local modules
@@ -54,7 +55,11 @@ fn main() {
         Err(_) => panic!("Could not open configuration file: '{}'", config_file)
     };
 
-    let _ = FileLogger::init(LogLevelFilter::Info, OpenOptions::new().append(true).open(&config.log_file).unwrap());
+//    let local_time: DateTime<Local> = Local::now();
+    let local_time = Local::now();
+    let full_log_filename = format!("{}___{}", local_time.format("%Y_%m_%d"), config.log_file);
+
+    let _ = FileLogger::init(LogLevelFilter::Info, OpenOptions::new().append(true).open(full_log_filename).unwrap());
 
     let db_conn = Connection::open(&config.db_filename).unwrap();
 
