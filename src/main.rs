@@ -17,7 +17,8 @@ extern crate ini;
 
 use std::error::Error;
 use std::path::Path;
-use std::fs::File;
+//use std::fs::File;
+use std::fs::OpenOptions;
 
 // External modules
 
@@ -53,7 +54,7 @@ fn main() {
         Err(_) => panic!("Could not open configuration file: '{}'", config_file)
     };
 
-    let _ = FileLogger::init(LogLevelFilter::Info, File::create(&config.log_file).unwrap());
+    let _ = FileLogger::init(LogLevelFilter::Info, OpenOptions::new().append(true).open(&config.log_file).unwrap());
 
     let db_conn = Connection::open(&config.db_filename).unwrap();
 
@@ -80,14 +81,14 @@ fn main() {
     mount.mount("/", router);
     mount.mount("/css/", Static::new(Path::new("css/")));
 
-    let mut chain1 = Chain::new(mount);
-    chain1.link_after(hbse);
+    let mut handlebars_chain = Chain::new(mount);
+    handlebars_chain.link_after(hbse);
 
-    let mut chain2 = Chain::new(chain1);
-    chain2.link(Write::<DBConnection>::both(db_conn));
+    let mut db_chain = Chain::new(handlebars_chain);
+    db_chain.link(Write::<DBConnection>::both(db_conn));
 
-    let mut chain3 = Chain::new(chain2);
-    chain3.link(Read::<Configuration>::both(config.clone()));
+    let mut config_chain = Chain::new(db_chain);
+    config_chain.link(Read::<Configuration>::both(config.clone()));
 
-    Iron::new(chain3).http(&config.socket_addr).unwrap();
+    Iron::new(config_chain).http(&config.socket_addr).unwrap();
 }

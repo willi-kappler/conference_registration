@@ -153,7 +153,7 @@ pub fn handle_login(req: &mut Request) -> IronResult<Response> {
 
     let mut resp = Response::new();
 
-    info!("handle_main: {:?}", map);
+    info!("handle_login: {:?}", map);
 
     let data : BTreeMap<String, Json> = BTreeMap::new();
     resp.set_mut(Template::new("login", data)).set_mut(status::Ok);
