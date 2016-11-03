@@ -2,6 +2,7 @@ use std::collections::BTreeMap;
 use std::sync::{PoisonError, MutexGuard};
 use std::net::{Ipv4Addr, AddrParseError};
 use std::str::FromStr;
+use std::fmt;
 
 use iron::prelude::{Request, IronResult, Response, Set};
 use iron::status;
@@ -81,21 +82,84 @@ impl From<AddrParseError> for HandleError {
 
 
 #[derive(Debug, PartialEq)]
-enum PriceCategory {
-    Student,
-    Regular
-}
-
-#[derive(Debug, PartialEq)]
 enum Title {
-    Sir,
-    Madam
+    Other,
+    Msc,
+    Dr,
+    Prof
+}
+
+impl fmt::Display for Title {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let s = match self {
+            &Title::Msc => "msc",
+            &Title::Dr => "dr",
+            &Title::Prof => "prof",
+            _ => "other"
+        };
+
+        write!(f, "{}", s)
+    }
+}
+
+impl From<String> for Title {
+    fn from(title: String) -> Title {
+        if title == "msc" { Title::Msc }
+        else if title == "dr" { Title::Dr }
+        else if title == "prof" { Title::Prof }
+        else { Title::Other }
+    }
 }
 
 #[derive(Debug, PartialEq)]
-enum Course {
-    Course1,
-    Course2
+enum Presentation {
+    Poster,
+    Talk,
+    NotPresenting
+}
+
+impl fmt::Display for Presentation {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let s = match self {
+            &Presentation::Poster => "poster",
+            &Presentation::Talk => "talk",
+            _ => "not_presenting"
+        };
+
+        write!(f, "{}", s)
+    }
+}
+
+impl From<String> for Presentation {
+    fn from(title: String) -> Presentation {
+        if title == "poster" { Presentation::Poster }
+        else if title == "talk" { Presentation::Talk }
+        else { Presentation::NotPresenting }
+    }
+}
+
+#[derive(Debug, PartialEq)]
+enum Meal {
+    MeatEater,
+    Vegetarian,
+}
+
+impl fmt::Display for Meal {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let s = match self {
+            &Meal::Vegetarian => "vegetarian",
+            _ => "meat_eater"
+        };
+
+        write!(f, "{}", s)
+    }
+}
+
+impl From<String> for Meal {
+    fn from(title: String) -> Meal {
+        if title == "vegetarian" { Meal::Vegetarian }
+        else { Meal::MeatEater }
+    }
 }
 
 #[derive(Debug, PartialEq)]
@@ -103,16 +167,15 @@ struct Registration {
     title: Title,
     last_name: String,
     first_name: String,
-    institution: String,
-    street: String,
-    street_no: String,
-    zip_code: String,
-    city: String,
-    phone: String,
     email_to: String,
-    more_info: String,
-    price_category: PriceCategory,
-    course_type: Course
+    institution: String,
+    special_participant: bool,
+    project_number: String,
+    phd_student: bool,
+    presentation: Presentation,
+    presentation_title: String,
+    meal_type: Meal,
+    comment: String,
 }
 
 
@@ -189,74 +252,60 @@ fn extract_string(map: &Map, key: &str) -> Result<String, HandleError> {
 
 fn map2registration(map: Map) -> Result<Registration, HandleError> {
     let result = Registration{
-        title: if try!(extract_string(&map, "title")) == "sir".to_string() { Title::Sir }
-        else { Title::Madam },
+        title: Title::from(try!(extract_string(&map, "title"))),
         last_name: try!(extract_string(&map, "last_name")),
         first_name: try!(extract_string(&map, "first_name")),
-        institution: try!(extract_string(&map, "institution")),
-        street: try!(extract_string(&map, "street")),
-        street_no: try!(extract_string(&map, "street_no")),
-        zip_code: try!(extract_string(&map, "zip_code")),
-        city: try!(extract_string(&map, "city")),
-        phone: try!(extract_string(&map, "phone")),
         email_to: try!(extract_string(&map, "email_to")),
-        more_info: try!(extract_string(&map, "more_info")),
-        price_category: if try!(extract_string(&map, "price_category")) == "student".to_string() { PriceCategory::Student }
-        else { PriceCategory::Regular },
-        course_type: if try!(extract_string(&map, "course_type")) == "course1".to_string() { Course::Course1 }
-        else { Course::Course2 }
+        institution: try!(extract_string(&map, "institution")),
+        special_participant: try!(extract_string(&map, "special_participant")) == "yes",
+        project_number: try!(extract_string(&map, "project_number")),
+        phd_student: try!(extract_string(&map, "phd_student")) == "yes",
+        presentation: Presentation::from(try!(extract_string(&map, "presentation"))),
+        presentation_title: try!(extract_string(&map, "presentation_title")),
+        meal_type: Meal::from(try!(extract_string(&map, "meal_type"))),
+        comment: try!(extract_string(&map, "comment"))
     };
 
     Ok(result)
 }
 
 fn insert_into_db(db_connection: &Connection, registration: &Registration) -> Result<(), HandleError> {
-    let title = if registration.title == Title::Sir { "sir".to_string() } else { "madam".to_string() };
-    let price_category = if registration.price_category == PriceCategory::Student { "student".to_string() } else { "regular".to_string() };
-    let course_type = if registration.course_type == Course::Course1 { "course1".to_string() } else { "course2".to_string() };
-
     try!(db_connection.execute("
          INSERT INTO registration (
            title,
            last_name,
            first_name,
-           institution,
-           street,
-           street_no,
-           zip_code,
-           city,
-           phone,
            email_to,
-           more_info,
-           price_category,
-           course_type
-         ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+           institution,
+           special_participant,
+           project_number,
+           phd_student,
+           presentation,
+           presentation_title,
+           meal_type,
+           comment
+         ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
          ",&[
-             &title,
+             &(registration.title.to_string()),
              &registration.last_name,
              &registration.first_name,
-             &registration.institution,
-             &registration.street,
-             &registration.street_no,
-             &registration.zip_code,
-             &registration.city,
-             &registration.phone,
              &registration.email_to,
-             &registration.more_info,
-             &price_category,
-             &course_type
+             &registration.institution,
+             &registration.special_participant,
+             &registration.project_number,
+             &registration.phd_student,
+             &(registration.presentation.to_string()),
+             &registration.presentation_title,
+             &(registration.meal_type.to_string()),
+             &registration.comment,
          ]));
-
 
     Ok(())
 }
 
 fn send_mail(registration: &Registration, config: &Configuration) -> Result<(), HandleError> {
-    let course = if registration.course_type == Course::Course1 { "3. Maerz 2017" } else { "22. September 2017" };
-    let subject = format!("Anmeldungsbestaetigung: TGAG Fortbildung - {}", course);
-    let greeting = if registration.title == Title::Sir { format!("Sehr geehrter Herr {},", registration.last_name) } else { format!("Sehr geehrte Frau {},", registration.last_name) };
-    let price = if registration.price_category == PriceCategory::Student { "Student".to_string() } else { "Regulaer".to_string() };
-    let body = format!("{}\n\nSie haben sich fuer den folgenden Kurs angemeldet:\n\n Zeitpunkt: {}\n Kategorie: {}\n\nMit freundlichen Gruessen,\ndie Fortbildungsorganisation", greeting, course, price);
+    let subject = "Earthshape registration confirmation";
+    let body = format!("Dear {} {},\nyou have sucessfully registered for the Earthshape meeting from 28 March to 31 March 2017.\n\nBest regards,\nthe Earthshape organisation team", registration.first_name, registration.last_name);
 
     let email_to = registration.email_to.as_str();
     let email_from = config.email_from.as_str();
@@ -287,7 +336,7 @@ fn send_mail(registration: &Registration, config: &Configuration) -> Result<(), 
 #[cfg(test)]
 mod tests {
     use super::{extract_string, map2registration, insert_into_db, send_mail,
-        Registration, PriceCategory, Title, Course, HandleError};
+        Registration, HandleError, Title, Presentation, Meal};
     use config::{load_configuration};
     use params::{Value, Map};
 
@@ -306,35 +355,33 @@ mod tests {
     #[test]
     fn test_map2registration1() {
         let mut map = Map::new();
-        map.assign("title", Value::String("sir".into())).unwrap();
+        map.assign("title", Value::String("other".into())).unwrap();
         map.assign("last_name", Value::String("Smith".into())).unwrap();
         map.assign("first_name", Value::String("Bob".into())).unwrap();
-        map.assign("institution", Value::String("Some university".into())).unwrap();
-        map.assign("street", Value::String("some_street".into())).unwrap();
-        map.assign("street_no", Value::String("12".into())).unwrap();
-        map.assign("zip_code", Value::String("12345".into())).unwrap();
-        map.assign("city", Value::String("some_city".into())).unwrap();
-        map.assign("phone", Value::String("1234567890".into())).unwrap();
         map.assign("email_to", Value::String("bob@smith.com".into())).unwrap();
-        map.assign("more_info", Value::String("Some more information".into())).unwrap();
-        map.assign("price_category", Value::String("student".into())).unwrap();
-        map.assign("course_type", Value::String("course1".into())).unwrap();
+        map.assign("institution", Value::String("Some university".into())).unwrap();
+        map.assign("special_participant", Value::String("yes".into())).unwrap();
+        map.assign("project_number", Value::String("3b".into())).unwrap();
+        map.assign("phd_student", Value::String("no".into())).unwrap();
+        map.assign("presentation", Value::String("talk".into())).unwrap();
+        map.assign("presentation_title", Value::String("how to get rich".into())).unwrap();
+        map.assign("meal_type", Value::String("vegetarian".into())).unwrap();
+        map.assign("comment", Value::String("pure awsomeness".into())).unwrap();
 
         let result = map2registration(map).unwrap();
         let expected = Registration{
-            title: Title::Sir,
+            title: Title::Other,
             last_name: "Smith".to_string(),
             first_name: "Bob".to_string(),
-            institution: "Some university".to_string(),
-            street: "some_street".to_string(),
-            street_no: "12".to_string(),
-            zip_code: "12345".to_string(),
-            city: "some_city".to_string(),
-            phone: "1234567890".to_string(),
             email_to: "bob@smith.com".to_string(),
-            more_info: "Some more information".to_string(),
-            price_category: PriceCategory::Student,
-            course_type: Course::Course1
+            institution: "Some university".to_string(),
+            special_participant: true,
+            project_number: "3b".to_string(),
+            phd_student: false,
+            presentation: Presentation::Talk,
+            presentation_title: "how to get rich".to_string(),
+            meal_type: Meal::Vegetarian,
+            comment: "pure awsomeness".to_string()
         };
 
         assert_eq!(result, expected);
@@ -343,35 +390,33 @@ mod tests {
     #[test]
     fn test_map2registration2() {
         let mut map = Map::new();
-        map.assign("title", Value::String("madam".into())).unwrap();
+        map.assign("title", Value::String("msc".into())).unwrap();
         map.assign("last_name", Value::String("Smith".into())).unwrap();
-        map.assign("first_name", Value::String("Alice".into())).unwrap();
+        map.assign("first_name", Value::String("Bob".into())).unwrap();
+        map.assign("email_to", Value::String("bob@smith.com".into())).unwrap();
         map.assign("institution", Value::String("Some university".into())).unwrap();
-        map.assign("street", Value::String("some_street".into())).unwrap();
-        map.assign("street_no", Value::String("15".into())).unwrap();
-        map.assign("zip_code", Value::String("11111".into())).unwrap();
-        map.assign("city", Value::String("some_city".into())).unwrap();
-        map.assign("phone", Value::String("999999999".into())).unwrap();
-        map.assign("email_to", Value::String("alice@smith.com".into())).unwrap();
-        map.assign("more_info", Value::String("Some more information".into())).unwrap();
-        map.assign("price_category", Value::String("student".into())).unwrap();
-        map.assign("course_type", Value::String("course1".into())).unwrap();
+        map.assign("special_participant", Value::String("yes".into())).unwrap();
+        map.assign("project_number", Value::String("3b".into())).unwrap();
+        map.assign("phd_student", Value::String("yes".into())).unwrap();
+        map.assign("presentation", Value::String("talk".into())).unwrap();
+        map.assign("presentation_title", Value::String("how to get rich".into())).unwrap();
+        map.assign("meal_type", Value::String("vegetarian".into())).unwrap();
+        map.assign("comment", Value::String("pure awsomeness".into())).unwrap();
 
         let result = map2registration(map).unwrap();
         let expected = Registration{
-            title: Title::Madam,
+            title: Title::Msc,
             last_name: "Smith".to_string(),
-            first_name: "Alice".to_string(),
+            first_name: "Bob".to_string(),
+            email_to: "bob@smith.com".to_string(),
             institution: "Some university".to_string(),
-            street: "some_street".to_string(),
-            street_no: "15".to_string(),
-            zip_code: "11111".to_string(),
-            city: "some_city".to_string(),
-            phone: "999999999".to_string(),
-            email_to: "alice@smith.com".to_string(),
-            more_info: "Some more information".to_string(),
-            price_category: PriceCategory::Student,
-            course_type: Course::Course1
+            special_participant: true,
+            project_number: "3b".to_string(),
+            phd_student: true,
+            presentation: Presentation::Talk,
+            presentation_title: "how to get rich".to_string(),
+            meal_type: Meal::Vegetarian,
+            comment: "pure awsomeness".to_string()
         };
 
         assert_eq!(result, expected);
@@ -380,35 +425,33 @@ mod tests {
     #[test]
     fn test_map2registration3() {
         let mut map = Map::new();
-        map.assign("title", Value::String("sir".into())).unwrap();
-        map.assign("last_name", Value::String("Brown".into())).unwrap();
-        map.assign("first_name", Value::String("Tim".into())).unwrap();
-        map.assign("institution", Value::String("Some university".into())).unwrap();
-        map.assign("street", Value::String("some_street".into())).unwrap();
-        map.assign("street_no", Value::String("12".into())).unwrap();
-        map.assign("zip_code", Value::String("12345".into())).unwrap();
-        map.assign("city", Value::String("some_city".into())).unwrap();
-        map.assign("phone", Value::String("1234567890".into())).unwrap();
+        map.assign("title", Value::String("prof".into())).unwrap();
+        map.assign("last_name", Value::String("Smith".into())).unwrap();
+        map.assign("first_name", Value::String("Bob".into())).unwrap();
         map.assign("email_to", Value::String("bob@smith.com".into())).unwrap();
-        map.assign("more_info", Value::String("Some more information".into())).unwrap();
-        map.assign("price_category", Value::String("regular".into())).unwrap();
-        map.assign("course_type", Value::String("course1".into())).unwrap();
+        map.assign("institution", Value::String("Some university".into())).unwrap();
+        map.assign("special_participant", Value::String("no".into())).unwrap();
+        map.assign("project_number", Value::String("3b".into())).unwrap();
+        map.assign("phd_student", Value::String("no".into())).unwrap();
+        map.assign("presentation", Value::String("not_presenting".into())).unwrap();
+        map.assign("presentation_title", Value::String("how to get rich".into())).unwrap();
+        map.assign("meal_type", Value::String("meat_eater".into())).unwrap();
+        map.assign("comment", Value::String("pure awsomeness".into())).unwrap();
 
         let result = map2registration(map).unwrap();
         let expected = Registration{
-            title: Title::Sir,
-            last_name: "Brown".to_string(),
-            first_name: "Tim".to_string(),
-            institution: "Some university".to_string(),
-            street: "some_street".to_string(),
-            street_no: "12".to_string(),
-            zip_code: "12345".to_string(),
-            city: "some_city".to_string(),
-            phone: "1234567890".to_string(),
+            title: Title::Prof,
+            last_name: "Smith".to_string(),
+            first_name: "Bob".to_string(),
             email_to: "bob@smith.com".to_string(),
-            more_info: "Some more information".to_string(),
-            price_category: PriceCategory::Regular,
-            course_type: Course::Course1
+            institution: "Some university".to_string(),
+            special_participant: false,
+            project_number: "3b".to_string(),
+            phd_student: false,
+            presentation: Presentation::NotPresenting,
+            presentation_title: "how to get rich".to_string(),
+            meal_type: Meal::MeatEater,
+            comment: "pure awsomeness".to_string()
         };
 
         assert_eq!(result, expected);
@@ -417,35 +460,33 @@ mod tests {
     #[test]
     fn test_map2registration4() {
         let mut map = Map::new();
-        map.assign("title", Value::String("sir".into())).unwrap();
+        map.assign("title", Value::String("dr".into())).unwrap();
         map.assign("last_name", Value::String("Smith".into())).unwrap();
         map.assign("first_name", Value::String("Bob".into())).unwrap();
-        map.assign("institution", Value::String("Some university".into())).unwrap();
-        map.assign("street", Value::String("some_street".into())).unwrap();
-        map.assign("street_no", Value::String("12".into())).unwrap();
-        map.assign("zip_code", Value::String("12345".into())).unwrap();
-        map.assign("city", Value::String("some_city".into())).unwrap();
-        map.assign("phone", Value::String("1234567890".into())).unwrap();
         map.assign("email_to", Value::String("bob@smith.com".into())).unwrap();
-        map.assign("more_info", Value::String("Some more information".into())).unwrap();
-        map.assign("price_category", Value::String("student".into())).unwrap();
-        map.assign("course_type", Value::String("course2".into())).unwrap();
+        map.assign("institution", Value::String("Some university".into())).unwrap();
+        map.assign("special_participant", Value::String("yes".into())).unwrap();
+        map.assign("project_number", Value::String("3b".into())).unwrap();
+        map.assign("phd_student", Value::String("no".into())).unwrap();
+        map.assign("presentation", Value::String("poster".into())).unwrap();
+        map.assign("presentation_title", Value::String("how to get rich".into())).unwrap();
+        map.assign("meal_type", Value::String("vegetarian".into())).unwrap();
+        map.assign("comment", Value::String("pure awsomeness".into())).unwrap();
 
         let result = map2registration(map).unwrap();
         let expected = Registration{
-            title: Title::Sir,
+            title: Title::Dr,
             last_name: "Smith".to_string(),
             first_name: "Bob".to_string(),
-            institution: "Some university".to_string(),
-            street: "some_street".to_string(),
-            street_no: "12".to_string(),
-            zip_code: "12345".to_string(),
-            city: "some_city".to_string(),
-            phone: "1234567890".to_string(),
             email_to: "bob@smith.com".to_string(),
-            more_info: "Some more information".to_string(),
-            price_category: PriceCategory::Student,
-            course_type: Course::Course2
+            institution: "Some university".to_string(),
+            special_participant: true,
+            project_number: "3b".to_string(),
+            phd_student: false,
+            presentation: Presentation::Poster,
+            presentation_title: "how to get rich".to_string(),
+            meal_type: Meal::Vegetarian,
+            comment: "pure awsomeness".to_string()
         };
 
         assert_eq!(result, expected);
@@ -455,19 +496,18 @@ mod tests {
     fn test_insert_into_db1() {
         let conn = Connection::open_in_memory().unwrap();
         let reg = Registration {
-            title: Title::Sir,
+            title: Title::Other,
             last_name: "Smith".to_string(),
             first_name: "Bob".to_string(),
+            email_to: "bob@smith.com".to_string(),
             institution: "Some university".to_string(),
-            street: "Somestreet".to_string(),
-            street_no: "15".to_string(),
-            zip_code: "12345".to_string(),
-            city: "Somewhere".to_string(),
-            phone: "123456789".to_string(),
-            email_to: "bob.smith@somewhere.com".to_string(),
-            more_info: "Some more information".to_string(),
-            price_category: PriceCategory::Student,
-            course_type: Course::Course1
+            special_participant: true,
+            project_number: "3b".to_string(),
+            phd_student: false,
+            presentation: Presentation::Talk,
+            presentation_title: "how to get rich".to_string(),
+            meal_type: Meal::Vegetarian,
+            comment: "pure awsomeness".to_string()
         };
 
         conn.execute("CREATE TABLE registration (
@@ -475,16 +515,15 @@ mod tests {
                   title           TEXT NOT NULL,
                   last_name       TEXT NOT NULL,
                   first_name      TEXT NOT NULL,
-                  institution     TEXT NOT NULL,
-                  street          TEXT NOT NULL,
-                  street_no       TEXT NOT NULL,
-                  zip_code        TEXT NOT NULL,
-                  city            TEXT NOT NULL,
-                  phone           TEXT NOT NULL,
                   email_to        TEXT NOT NULL,
-                  more_info       TEXT NOT NULL,
-                  price_category  TEXT NOT NULL,
-                  course_type     TEXT NOT NULL
+                  institution     TEXT NOT NULL,
+                  special_participant TEXT NOT NULL,
+                  project_number  TEXT NOT NULL,
+                  phd_student     TEXT NOT NULL,
+                  presentation    TEXT NOT NULL,
+                  presentation_title TEXT NOT NULL,
+                  meal_type       TEXT NOT NULL,
+                  comment         TEXT NOT NULL
                   )", &[]).unwrap();
 
         assert!(insert_into_db(&conn, &reg).is_ok());
@@ -494,61 +533,60 @@ mod tests {
         let result = rows.next().unwrap().unwrap();
 
         assert_eq!(result.get::<i32, i32>(0), 1);
-        assert_eq!(result.get::<i32, String>(1), "sir");
+        assert_eq!(result.get::<i32, String>(1), "other");
         assert_eq!(result.get::<i32, String>(2), "Smith");
         assert_eq!(result.get::<i32, String>(3), "Bob");
-        assert_eq!(result.get::<i32, String>(4), "Some university");
-        assert_eq!(result.get::<i32, String>(5), "Somestreet");
-        assert_eq!(result.get::<i32, String>(6), "15");
-        assert_eq!(result.get::<i32, String>(7), "12345");
-        assert_eq!(result.get::<i32, String>(8), "Somewhere");
-        assert_eq!(result.get::<i32, String>(9), "123456789");
-        assert_eq!(result.get::<i32, String>(10), "bob.smith@somewhere.com");
-        assert_eq!(result.get::<i32, String>(11), "Some more information");
-        assert_eq!(result.get::<i32, String>(12), "student");
-        assert_eq!(result.get::<i32, String>(13), "course1");
+        assert_eq!(result.get::<i32, String>(4), "bob@smith.com");
+        assert_eq!(result.get::<i32, String>(5), "Some university");
+        assert_eq!(result.get::<i32, String>(6), "1");
+        assert_eq!(result.get::<i32, String>(7), "3b");
+        assert_eq!(result.get::<i32, String>(8), "0");
+        assert_eq!(result.get::<i32, String>(9), "talk");
+        assert_eq!(result.get::<i32, String>(10), "how to get rich");
+        assert_eq!(result.get::<i32, String>(11), "vegetarian");
+        assert_eq!(result.get::<i32, String>(12), "pure awsomeness");
     }
 
     #[test]
     fn test_insert_into_db2() {
         let conn = Connection::open("registration_database.sqlite3").unwrap();
+
         let reg = Registration {
-            title: Title::Sir,
+            title: Title::Other,
             last_name: "Smith".to_string(),
             first_name: "Bob".to_string(),
+            email_to: "bob@smith.com".to_string(),
             institution: "Some university".to_string(),
-            street: "Somestreet".to_string(),
-            street_no: "15".to_string(),
-            zip_code: "12345".to_string(),
-            city: "Somewhere".to_string(),
-            phone: "123456789".to_string(),
-            email_to: "bob.smith@somewhere.com".to_string(),
-            more_info: "Some more information".to_string(),
-            price_category: PriceCategory::Student,
-            course_type: Course::Course2
+            special_participant: false,
+            project_number: "7a".to_string(),
+            phd_student: true,
+            presentation: Presentation::Talk,
+            presentation_title: "how to get rich".to_string(),
+            meal_type: Meal::Vegetarian,
+            comment: "pure awsomeness".to_string()
         };
 
         assert!(insert_into_db(&conn, &reg).is_ok());
 
-        let mut stmt = conn.prepare("SELECT * FROM registration WHERE city = 'Somewhere'").unwrap();
+        let mut stmt = conn.prepare("SELECT * FROM registration WHERE id = '1'").unwrap();
         let mut rows = stmt.query(&[]).unwrap();
         let result = rows.next().unwrap().unwrap();
 
-        assert_eq!(result.get::<i32, String>(1), "sir");
+        assert_eq!(result.get::<i32, i32>(0), 1);
+        assert_eq!(result.get::<i32, String>(1), "other");
         assert_eq!(result.get::<i32, String>(2), "Smith");
         assert_eq!(result.get::<i32, String>(3), "Bob");
-        assert_eq!(result.get::<i32, String>(4), "Some university");
-        assert_eq!(result.get::<i32, String>(5), "Somestreet");
-        assert_eq!(result.get::<i32, String>(6), "15");
-        assert_eq!(result.get::<i32, String>(7), "12345");
-        assert_eq!(result.get::<i32, String>(8), "Somewhere");
-        assert_eq!(result.get::<i32, String>(9), "123456789");
-        assert_eq!(result.get::<i32, String>(10), "bob.smith@somewhere.com");
-        assert_eq!(result.get::<i32, String>(11), "Some more information");
-        assert_eq!(result.get::<i32, String>(12), "student");
-        assert_eq!(result.get::<i32, String>(13), "course2");
+        assert_eq!(result.get::<i32, String>(4), "bob@smith.com");
+        assert_eq!(result.get::<i32, String>(5), "Some university");
+        assert_eq!(result.get::<i32, String>(6), "0");
+        assert_eq!(result.get::<i32, String>(7), "7a");
+        assert_eq!(result.get::<i32, String>(8), "1");
+        assert_eq!(result.get::<i32, String>(9), "talk");
+        assert_eq!(result.get::<i32, String>(10), "how to get rich");
+        assert_eq!(result.get::<i32, String>(11), "vegetarian");
+        assert_eq!(result.get::<i32, String>(12), "pure awsomeness");
 
-        conn.execute("DELETE FROM registration WHERE city = 'Somewhere';", &[]).unwrap();
+        conn.execute("DELETE FROM registration WHERE id = '1';", &[]).unwrap();
     }
 
     #[test]
@@ -556,19 +594,18 @@ mod tests {
         let config = load_configuration("test_config2.ini").unwrap();
 
         let reg = Registration {
-            title: Title::Sir,
+            title: Title::Other,
             last_name: "Smith".to_string(),
             first_name: "Bob".to_string(),
+            email_to: "bob@smith.com".to_string(),
             institution: "Some university".to_string(),
-            street: "Somestreet".to_string(),
-            street_no: "15".to_string(),
-            zip_code: "12345".to_string(),
-            city: "Somewhere".to_string(),
-            phone: "123456789".to_string(),
-            email_to: "bob.smith@somewhere.com".to_string(),
-            more_info: "Some more information".to_string(),
-            price_category: PriceCategory::Student,
-            course_type: Course::Course2
+            special_participant: true,
+            project_number: "3b".to_string(),
+            phd_student: false,
+            presentation: Presentation::Talk,
+            presentation_title: "how to get rich".to_string(),
+            meal_type: Meal::Vegetarian,
+            comment: "pure awsomeness".to_string()
         };
 
         let result = send_mail(&reg, &config);
@@ -581,19 +618,18 @@ mod tests {
         let config = load_configuration("test_config2.ini").unwrap();
 
         let reg = Registration {
-            title: Title::Madam,
+            title: Title::Other,
             last_name: "Smith".to_string(),
-            first_name: "Jane".to_string(),
+            first_name: "Bob".to_string(),
+            email_to: "bob@smith.com".to_string(),
             institution: "Some university".to_string(),
-            street: "Somestreet".to_string(),
-            street_no: "15".to_string(),
-            zip_code: "12345".to_string(),
-            city: "Somewhere".to_string(),
-            phone: "123456789".to_string(),
-            email_to: "bob.smith@somewhere.com".to_string(),
-            more_info: "Some more information".to_string(),
-            price_category: PriceCategory::Regular,
-            course_type: Course::Course1
+            special_participant: true,
+            project_number: "3b".to_string(),
+            phd_student: false,
+            presentation: Presentation::Talk,
+            presentation_title: "how to get rich".to_string(),
+            meal_type: Meal::Vegetarian,
+            comment: "pure awsomeness".to_string()
         };
 
         let result = send_mail(&reg, &config);

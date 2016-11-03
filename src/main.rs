@@ -59,7 +59,7 @@ fn main() {
     let local_time = Local::now();
     let full_log_filename = format!("{}___{}", local_time.format("%Y_%m_%d"), config.log_file);
 
-    let _ = FileLogger::init(LogLevelFilter::Info, OpenOptions::new().append(true).open(full_log_filename).unwrap());
+    let _ = FileLogger::init(LogLevelFilter::Info, OpenOptions::new().create(true).append(true).open(full_log_filename).unwrap());
 
     let db_conn = Connection::open(&config.db_filename).unwrap();
 
