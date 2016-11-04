@@ -197,11 +197,11 @@ pub fn handle_submit(req: &mut Request) -> IronResult<Response> {
     match handle_form_data(req) {
         Ok(_) => {
             info!("Data handled successfully");
-            message.insert("message".to_string(), "Ihre Anmeldung war erfolgreich".to_json());
+            message.insert("message".to_string(), "Your registration was successful.".to_json());
         }
         Err(e) => {
             error!("Error while processing data: {:?}", e);
-            message.insert("message".to_string(), "Ein Fehler ist aufgetreten. Bitte versuchen Sie es später noch einmal.".to_json());
+            message.insert("message".to_string(), "An error occured. Please try it again later".to_json());
         }
     }
 
