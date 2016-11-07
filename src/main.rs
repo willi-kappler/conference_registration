@@ -55,7 +55,6 @@ fn main() {
         Err(_) => panic!("Could not open configuration file: '{}'", config_file)
     };
 
-//    let local_time: DateTime<Local> = Local::now();
     let local_time = Local::now();
     let full_log_filename = format!("{}___{}", local_time.format("%Y_%m_%d"), config.log_file);
 
