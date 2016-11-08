@@ -24,7 +24,7 @@ use lettre;
 
 use ::DBConnection;
 use config::Configuration;
-
+use chrono::Local;
 
 #[derive(Debug, PartialEq)]
 pub enum HandleError {
@@ -178,29 +178,59 @@ struct Registration {
     comment: String,
 }
 
+fn check_login(req: &mut Request) -> Result<bool, HandleError> {
+    let map = try!(req.get::<Params>());
+
+    info!("{}: handle_submit: {:?}", Local::now().format("%Y.%m.%d"), map);
+
+    let config = try!(req.get::<Read<Configuration>>());
+
+    let username = try!(extract_string(&map, "username"));
+    let password = try!(extract_string(&map, "password"));
+
+    Ok(username == config.login_user && password == config.login_passwd)
+}
 
 pub fn handle_main(req: &mut Request) -> IronResult<Response> {
-    let map = req.get_ref::<Params>().unwrap();
+    let local_time = Local::now().format("%Y.%m.%d");
+
+    info!("{}: handle_main", local_time);
 
     let mut resp = Response::new();
 
-    info!("handle_main: {:?}", map);
+    let mut message: BTreeMap<String, Json> = BTreeMap::new();
 
-    let data : BTreeMap<String, Json> = BTreeMap::new();
-    resp.set_mut(Template::new("index", data)).set_mut(status::Ok);
+    match check_login(req) {
+        Ok(login_successful) => {
+            if login_successful {
+                resp.set_mut(Template::new("main", message)).set_mut(status::Ok);
+            } else {
+                message.insert("message".to_string(), "Wrong user name or password!".to_json());
+                resp.set_mut(Template::new("login", message)).set_mut(status::Ok);
+            }
+        }
+        Err(e) => {
+            error!("{}: Error while processing data: {:?}", local_time, e);
+            message.insert("message".to_string(), "An error occured. Please try it again later".to_json());
+            resp.set_mut(Template::new("login", message)).set_mut(status::Ok);
+        }
+    }
+
     Ok(resp)
 }
 
 pub fn handle_submit(req: &mut Request) -> IronResult<Response> {
     let mut message: BTreeMap<String, Json> = BTreeMap::new();
 
+    let local_time = Local::now().format("%Y.%m.%d");
+
     match handle_form_data(req) {
         Ok(_) => {
-            info!("Data handled successfully");
+            info!("{}: Data handled successfully", local_time);
             message.insert("message".to_string(), "Your registration was successful.".to_json());
         }
         Err(e) => {
-            error!("Error while processing data: {:?}", e);
+            error!("{}: Error while processing data: {:?}", local_time, e);
             message.insert("message".to_string(), "An error occured. Please try it again later".to_json());
         }
     }
@@ -216,17 +246,19 @@ pub fn handle_login(req: &mut Request) -> IronResult<Response> {
 
     let mut resp = Response::new();
 
-    info!("handle_login: {:?}", map);
+    info!("{}: handle_login: {:?}", Local::now().format("%Y.%m.%d"), map);
 
-    let data : BTreeMap<String, Json> = BTreeMap::new();
-    resp.set_mut(Template::new("login", data)).set_mut(status::Ok);
+    let mut message: BTreeMap<String, Json> = BTreeMap::new();
+    message.insert("message".to_string(), "Please log in first!".to_json());
+
+    resp.set_mut(Template::new("login", message)).set_mut(status::Ok);
     Ok(resp)
 }
 
 fn handle_form_data(req: &mut Request) -> Result<(), HandleError> {
     let map = try!(req.get::<Params>());
 
-    info!("handle_submit: {:?}", map);
+    info!("{}: handle_submit: {:?}", Local::now().format("%Y.%m.%d"), map);
 
     let registration = try!(map2registration(map));
 

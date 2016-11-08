@@ -71,11 +71,11 @@ fn main() {
 
     let mut router = Router::new();
 
-    router.get("/", handle_main, "index");
-    router.post("/", handle_main, "index");
+    router.get("/", handle_login, "login");
+    router.post("/", handle_login, "login");
 
-    router.get("/login", handle_login, "login");
-    router.post("/login", handle_login, "login");
+    router.get("/main", handle_main, "main");
+    router.post("/main", handle_main, "main");
 
     router.get("/submit", handle_submit, "submit");
     router.post("/submit", handle_submit, "submit");
