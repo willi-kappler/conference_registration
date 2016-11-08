@@ -549,7 +549,9 @@ mod tests {
 
     #[test]
     fn test_insert_into_db2() {
-        let conn = Connection::open("registration_database.sqlite3").unwrap();
+        let conn = Connection::open("registration_database.sqlite3");
+        assert!(conn.is_ok());
+        let conn = conn.unwrap();
 
         let reg = Registration {
             title: Title::Other,
@@ -568,9 +570,20 @@ mod tests {
 
         assert!(insert_into_db(&conn, &reg).is_ok());
 
-        let mut stmt = conn.prepare("SELECT * FROM registration WHERE id = '1'").unwrap();
-        let mut rows = stmt.query(&[]).unwrap();
-        let result = rows.next().unwrap().unwrap();
+        let stmt = conn.prepare("SELECT * FROM registration WHERE id = '1'");
+        assert!(stmt.is_ok());
+        let mut stmt = stmt.unwrap();
+
+        let rows = stmt.query(&[]);
+        assert!(rows.is_ok());
+        let mut rows = rows.unwrap();
+
+        let result = rows.next();
+        assert!(result.is_some());
+        let result = result.unwrap();
+        assert!(result.is_ok());
+        let result = result.unwrap();
+
 
         assert_eq!(result.get::<i32, i32>(0), 1);
         assert_eq!(result.get::<i32, String>(1), "other");
