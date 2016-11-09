@@ -21,6 +21,8 @@ use lettre::transport::smtp::authentication::Mechanism;
 use lettre::transport::smtp::SUBMISSION_PORT;
 use lettre::transport::EmailTransport;
 use lettre;
+use oven::prelude::{ResponseExt, RequestExt};
+use cookie;
 
 use ::DBConnection;
 use config::Configuration;
@@ -193,65 +195,119 @@ fn check_login(req: &mut Request) -> Result<bool, HandleError> {
 
 pub fn handle_main(req: &mut Request) -> IronResult<Response> {
     let local_time = Local::now().format("%Y.%m.%d");
-
-    info!("{}: handle_main", local_time);
-
+    let mut message: BTreeMap<String, Json> = BTreeMap::new();
     let mut resp = Response::new();
 
-    let mut message: BTreeMap<String, Json> = BTreeMap::new();
+    info!("{}: handle_main", local_time);
 
     match check_login(req) {
         Ok(login_successful) => {
             if login_successful {
                 resp.set_mut(Template::new("main", message)).set_mut(status::Ok);
+
+                let mut cookie = cookie::Cookie::new("login".to_string(), "success".to_string());
+                cookie.max_age = Some(60 * 60); // 60 * 60 seconds = 3600 seconds = 1 hour
+                cookie.secure = false; // Also allow to send cookie when connection is not secure
+                resp.set_cookie(cookie);
             } else {
                 message.insert("message".to_string(), "Wrong user name or password!".to_json());
                 resp.set_mut(Template::new("login", message)).set_mut(status::Ok);
+
+                let mut cookie = cookie::Cookie::new("login".to_string(), "fail".to_string());
+                cookie.max_age = Some(60 * 60); // 60 * 60 seconds = 3600 seconds = 1 hour
+                cookie.secure = false;
+                resp.set_cookie(cookie);
             }
         }
         Err(e) => {
-            error!("{}: Error while processing data: {:?}", local_time, e);
-            message.insert("message".to_string(), "An error occured. Please try it again later".to_json());
-            resp.set_mut(Template::new("login", message)).set_mut(status::Ok);
+            if e == HandleError::FormValue {
+                let login_cookie = req.get_cookie("login");
+
+                if let Some(stored_cookie) = login_cookie {
+                    if stored_cookie.value == "success" {
+                        resp.set_mut(Template::new("main", message)).set_mut(status::Ok);
+                    } else {
+                        message.insert("message".to_string(), "Please log in first!".to_json());
+                        resp.set_mut(Template::new("login", message)).set_mut(status::Ok);
+                    }
+                } else {
+                    message.insert("message".to_string(), "Please log in first!".to_json());
+                    resp.set_mut(Template::new("login", message)).set_mut(status::Ok);
+                }
+            } else {
+                error!("{}: Error while processing data: {:?}", local_time, e);
+                message.insert("message".to_string(), "An error occured. Please try it again later".to_json());
+                resp.set_mut(Template::new("login", message)).set_mut(status::Ok);
+            }
         }
     }
 
     Ok(resp)
+}
+
+fn get_cookie(req: &mut Request) -> Option<cookie::Cookie> {
+    let cookie = req.get_cookie("login");
+    match cookie {
+        Some(cookie) => Some(cookie.clone()),
+        None => None
+    }
 }
 
 pub fn handle_submit(req: &mut Request) -> IronResult<Response> {
     let mut message: BTreeMap<String, Json> = BTreeMap::new();
-
-    let local_time = Local::now().format("%Y.%m.%d");
-
-    match handle_form_data(req) {
-        Ok(_) => {
-            info!("{}: Data handled successfully", local_time);
-            message.insert("message".to_string(), "Your registration was successful.".to_json());
-        }
-        Err(e) => {
-            error!("{}: Error while processing data: {:?}", local_time, e);
-            message.insert("message".to_string(), "An error occured. Please try it again later".to_json());
-        }
-    }
-
     let mut resp = Response::new();
 
-    resp.set_mut(Template::new("submit", message)).set_mut(status::Ok);
+    let login_cookie = get_cookie(req);
+
+    if let Some(stored_cookie) = login_cookie {
+        if stored_cookie.value == "success" {
+            let local_time = Local::now().format("%Y.%m.%d");
+
+            match handle_form_data(req) {
+                Ok(_) => {
+                    info!("{}: Data handled successfully", local_time);
+                    message.insert("message".to_string(), "Your registration was successful. You should receice a confirmation e-mail. (Please also check your spam folder)".to_json());
+                }
+                Err(e) => {
+                    error!("{}: Error while processing data: {:?}", local_time, e);
+                    message.insert("message".to_string(), "An error occured. Please try it again later".to_json());
+                }
+            }
+
+            resp.set_mut(Template::new("submit", message)).set_mut(status::Ok);
+        } else {
+            message.insert("message".to_string(), "Please log in first!".to_json());
+            resp.set_mut(Template::new("login", message)).set_mut(status::Ok);
+        }
+    } else {
+        message.insert("message".to_string(), "Please log in first!".to_json());
+        resp.set_mut(Template::new("login", message)).set_mut(status::Ok);
+    }
+
     Ok(resp)
 }
 
 pub fn handle_login(req: &mut Request) -> IronResult<Response> {
-    let map = req.get_ref::<Params>().unwrap();
-
+    let mut message: BTreeMap<String, Json> = BTreeMap::new();
     let mut resp = Response::new();
+
+    let login_cookie = get_cookie(req);
+    let map = req.get_ref::<Params>().unwrap();
 
     info!("{}: handle_login: {:?}", Local::now().format("%Y.%m.%d"), map);
 
-    let mut message: BTreeMap<String, Json> = BTreeMap::new();
-    message.insert("message".to_string(), "Please log in first!".to_json());
+    if let Some(stored_cookie) = login_cookie {
+        if stored_cookie.value == "success" {
+            resp.set_mut(Template::new("main", message)).set_mut(status::Ok);
+        } else {
+            message.insert("message".to_string(), "Please log in first!".to_json());
+            resp.set_mut(Template::new("login", message)).set_mut(status::Ok);
+        }
+    } else {
+        message.insert("message".to_string(), "Please log in first!".to_json());
+        resp.set_mut(Template::new("login", message)).set_mut(status::Ok);
+    }
 
-    resp.set_mut(Template::new("login", message)).set_mut(status::Ok);
     Ok(resp)
 }
 

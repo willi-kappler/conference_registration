@@ -13,15 +13,15 @@ extern crate persistent;
 extern crate lettre;
 extern crate ini;
 extern crate chrono;
+extern crate oven;
+extern crate cookie;
 
 // System modules
-
 use std::error::Error;
 use std::path::Path;
 use std::fs::OpenOptions;
 
 // External modules
-
 use iron::prelude::{Iron, Chain};
 use iron::typemap::Key;
 use router::Router;
@@ -33,9 +33,7 @@ use simplelog::{FileLogger, LogLevelFilter};
 use persistent::{Read, Write};
 use chrono::Local;
 
-
 // Local modules
-
 mod config;
 mod handler;
 
@@ -94,5 +92,8 @@ fn main() {
     let mut config_chain = Chain::new(db_chain);
     config_chain.link(Read::<Configuration>::both(config.clone()));
 
-    Iron::new(config_chain).http(&config.socket_addr).unwrap();
+    let mut cookie_chain = Chain::new(config_chain);
+    cookie_chain.link(oven::new(config.cookie_key.into_bytes()));
+
+    Iron::new(cookie_chain).http(&config.socket_addr).unwrap();
 }
