@@ -144,13 +144,15 @@ impl From<String> for Presentation {
 enum Meal {
     MeatEater,
     Vegetarian,
+    NoMeal
 }
 
 impl fmt::Display for Meal {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let s = match self {
             &Meal::Vegetarian => "vegetarian",
-            _ => "meat_eater"
+            &Meal::MeatEater => "meat_eater",
+            &Meal::NoMeal => "no_meal"
         };
 
         write!(f, "{}", s)
@@ -160,7 +162,8 @@ impl fmt::Display for Meal {
 impl From<String> for Meal {
     fn from(title: String) -> Meal {
         if title == "vegetarian" { Meal::Vegetarian }
-        else { Meal::MeatEater }
+        else if title == "meat_eater" { Meal::MeatEater }
+        else { Meal::NoMeal }
     }
 }
 
