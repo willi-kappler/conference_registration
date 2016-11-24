@@ -269,7 +269,7 @@ pub fn handle_submit(req: &mut Request) -> IronResult<Response> {
             match handle_form_data(req) {
                 Ok(_) => {
                     info!("{}: Data handled successfully", local_time);
-                    message.insert("message".to_string(), "Your registration was successful. You should receice a confirmation e-mail. (Please also check your spam folder)".to_json());
+                    message.insert("message".to_string(), "Your registration was successful. You should receive a confirmation e-mail. (Please also check your spam folder)".to_json());
                 }
                 Err(e) => {
                     error!("{}: Error while processing data: {:?}", local_time, e);
