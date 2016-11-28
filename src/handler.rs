@@ -180,6 +180,7 @@ struct Registration {
     presentation: Presentation,
     presentation_title: String,
     meal_type: Meal,
+    pay_cash: bool,
     comment: String,
 }
 
@@ -354,6 +355,7 @@ fn map2registration(map: Map) -> Result<Registration, HandleError> {
         presentation: Presentation::from(try!(extract_string(&map, "presentation"))),
         presentation_title: try!(extract_string(&map, "presentation_title")),
         meal_type: Meal::from(try!(extract_string(&map, "meal_type"))),
+        pay_cash: try!(extract_string(&map, "pay_cash")) == "yes",
         comment: try!(extract_string(&map, "comment"))
     };
 
@@ -374,8 +376,9 @@ fn insert_into_db(db_connection: &Connection, registration: &Registration) -> Re
            presentation,
            presentation_title,
            meal_type,
+           pay_cash,
            comment
-         ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
          ",&[
              &(registration.title.to_string()),
              &registration.last_name,
@@ -388,6 +391,7 @@ fn insert_into_db(db_connection: &Connection, registration: &Registration) -> Re
              &(registration.presentation.to_string()),
              &registration.presentation_title,
              &(registration.meal_type.to_string()),
+             &registration.pay_cash,
              &registration.comment,
          ]));
 
@@ -457,6 +461,7 @@ mod tests {
         map.assign("presentation", Value::String("talk".into())).unwrap();
         map.assign("presentation_title", Value::String("how to get rich".into())).unwrap();
         map.assign("meal_type", Value::String("vegetarian".into())).unwrap();
+        map.assign("pay_cash", Value::String("yes".into())).unwrap();
         map.assign("comment", Value::String("pure awsomeness".into())).unwrap();
 
         let result = map2registration(map).unwrap();
@@ -472,6 +477,7 @@ mod tests {
             presentation: Presentation::Talk,
             presentation_title: "how to get rich".to_string(),
             meal_type: Meal::Vegetarian,
+            pay_cash: true,
             comment: "pure awsomeness".to_string()
         };
 
@@ -492,6 +498,7 @@ mod tests {
         map.assign("presentation", Value::String("talk".into())).unwrap();
         map.assign("presentation_title", Value::String("how to get rich".into())).unwrap();
         map.assign("meal_type", Value::String("vegetarian".into())).unwrap();
+        map.assign("pay_cash", Value::String("no".into())).unwrap();
         map.assign("comment", Value::String("pure awsomeness".into())).unwrap();
 
         let result = map2registration(map).unwrap();
@@ -507,6 +514,7 @@ mod tests {
             presentation: Presentation::Talk,
             presentation_title: "how to get rich".to_string(),
             meal_type: Meal::Vegetarian,
+            pay_cash: false,
             comment: "pure awsomeness".to_string()
         };
 
@@ -527,6 +535,7 @@ mod tests {
         map.assign("presentation", Value::String("not_presenting".into())).unwrap();
         map.assign("presentation_title", Value::String("how to get rich".into())).unwrap();
         map.assign("meal_type", Value::String("meat_eater".into())).unwrap();
+        map.assign("pay_cash", Value::String("yes".into())).unwrap();
         map.assign("comment", Value::String("pure awsomeness".into())).unwrap();
 
         let result = map2registration(map).unwrap();
@@ -542,6 +551,7 @@ mod tests {
             presentation: Presentation::NotPresenting,
             presentation_title: "how to get rich".to_string(),
             meal_type: Meal::MeatEater,
+            pay_cash: true,
             comment: "pure awsomeness".to_string()
         };
 
@@ -562,6 +572,7 @@ mod tests {
         map.assign("presentation", Value::String("poster".into())).unwrap();
         map.assign("presentation_title", Value::String("how to get rich".into())).unwrap();
         map.assign("meal_type", Value::String("vegetarian".into())).unwrap();
+        map.assign("pay_cash", Value::String("no".into())).unwrap();
         map.assign("comment", Value::String("pure awsomeness".into())).unwrap();
 
         let result = map2registration(map).unwrap();
@@ -577,6 +588,7 @@ mod tests {
             presentation: Presentation::Poster,
             presentation_title: "how to get rich".to_string(),
             meal_type: Meal::Vegetarian,
+            pay_cash: false,
             comment: "pure awsomeness".to_string()
         };
 
@@ -598,6 +610,7 @@ mod tests {
             presentation: Presentation::Talk,
             presentation_title: "how to get rich".to_string(),
             meal_type: Meal::Vegetarian,
+            pay_cash: true,
             comment: "pure awsomeness".to_string()
         };
 
@@ -614,6 +627,7 @@ mod tests {
                   presentation    TEXT NOT NULL,
                   presentation_title TEXT NOT NULL,
                   meal_type       TEXT NOT NULL,
+                  pay_cash        TEXT NOT NULL,
                   comment         TEXT NOT NULL
                   )", &[]).unwrap();
 
@@ -635,7 +649,8 @@ mod tests {
         assert_eq!(result.get::<i32, String>(9), "talk");
         assert_eq!(result.get::<i32, String>(10), "how to get rich");
         assert_eq!(result.get::<i32, String>(11), "vegetarian");
-        assert_eq!(result.get::<i32, String>(12), "pure awsomeness");
+        assert_eq!(result.get::<i32, String>(12), "1");
+        assert_eq!(result.get::<i32, String>(13), "pure awsomeness");
     }
 
     #[test]
@@ -656,6 +671,7 @@ mod tests {
             presentation: Presentation::Talk,
             presentation_title: "how to get rich".to_string(),
             meal_type: Meal::Vegetarian,
+            pay_cash: false,
             comment: "pure awsomeness".to_string()
         };
 
@@ -689,6 +705,7 @@ mod tests {
         assert_eq!(result.get::<i32, String>(10), "how to get rich");
         assert_eq!(result.get::<i32, String>(11), "vegetarian");
         assert_eq!(result.get::<i32, String>(12), "pure awsomeness");
+        assert_eq!(result.get::<i32, String>(13), "0");
 
         conn.execute("DELETE FROM registration WHERE id = '1';", &[]).unwrap();
     }
@@ -709,6 +726,7 @@ mod tests {
             presentation: Presentation::Talk,
             presentation_title: "how to get rich".to_string(),
             meal_type: Meal::Vegetarian,
+            pay_cash: true,
             comment: "pure awsomeness".to_string()
         };
 
@@ -733,6 +751,7 @@ mod tests {
             presentation: Presentation::Talk,
             presentation_title: "how to get rich".to_string(),
             meal_type: Meal::Vegetarian,
+            pay_cash: false,
             comment: "pure awsomeness".to_string()
         };
 
