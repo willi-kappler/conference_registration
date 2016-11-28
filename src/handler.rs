@@ -659,6 +659,8 @@ mod tests {
         assert!(conn.is_ok());
         let conn = conn.unwrap();
 
+        conn.execute("DELETE FROM registration;", &[]).unwrap();
+
         let reg = Registration {
             title: Title::Other,
             last_name: "Smith".to_string(),
