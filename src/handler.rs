@@ -408,7 +408,7 @@ fn send_mail(registration: &Registration, config: &Configuration) -> Result<(), 
     let email = try!(EmailBuilder::new()
                     .to(email_to)
                     .from(email_from)
-                    .cc(email_from)
+                    //.cc(email_from)
                     .body(&body)
                     .subject(&subject)
                     .build());
