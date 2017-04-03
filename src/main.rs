@@ -82,6 +82,7 @@ fn main() {
 
     mount.mount("/", router);
     mount.mount("/css/", Static::new(Path::new("css/")));
+    mount.mount("/js/", Static::new(Path::new("js/")));
 
     let mut handlebars_chain = Chain::new(mount);
     handlebars_chain.link_after(hbse);
