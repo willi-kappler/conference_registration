@@ -118,11 +118,11 @@ struct Registration {
 
 pub fn handle_main(req: &mut Request) -> IronResult<Response> {
     let map = req.get_ref::<Params>().unwrap();
-    
+
     let mut resp = Response::new();
 
     info!("handle_main: {:?}", map);
-    
+
     let data : BTreeMap<String, Json> = BTreeMap::new();
     resp.set_mut(Template::new("index", data)).set_mut(status::Ok);
     Ok(resp)
@@ -141,7 +141,7 @@ pub fn handle_submit(req: &mut Request) -> IronResult<Response> {
             message.insert("message".to_string(), "Ein Fehler ist aufgetreten. Bitte versuchen Sie es später noch einmal.".to_json());
         }
     }
-    
+
     let mut resp = Response::new();
 
     resp.set_mut(Template::new("submit", message)).set_mut(status::Ok);
@@ -149,22 +149,22 @@ pub fn handle_submit(req: &mut Request) -> IronResult<Response> {
 }
 
 fn handle_form_data(req: &mut Request) -> Result<(), HandleError> {
-    let map = try!(req.get::<Params>());
-    
+    let map = req.get::<Params>()?;
+
     info!("handle_submit: {:?}", map);
 
-    let registration = try!(map2registration(map));
+    let registration = map2registration(map)?;
 
-    let mutex = try!(req.get::<Write<DBConnection>>());
+    let mutex = req.get::<Write<DBConnection>>()?;
 
-    let db_connection = try!(mutex.lock());
-    
-    try!(insert_into_db(&*db_connection, &registration));
+    let db_connection = mutex.lock()?;
 
-    let config = try!(req.get::<Read<Configuration>>());
-    
-    try!(send_mail(&registration, &config));
-    
+    insert_into_db(&*db_connection, &registration)?;
+
+    let config = req.get::<Read<Configuration>>()?;
+
+    send_mail(&registration, &config)?;
+
     Ok(())
 }
 
@@ -177,21 +177,21 @@ fn extract_string(map: &Map, key: &str) -> Result<String, HandleError> {
 
 fn map2registration(map: Map) -> Result<Registration, HandleError> {
     let result = Registration{
-        title: if try!(extract_string(&map, "title")) == "sir".to_string() { Title::Sir }
+        title: if extract_string(&map, "title")? == "sir".to_string() { Title::Sir }
         else { Title::Madam },
-        last_name: try!(extract_string(&map, "last_name")),
-        first_name: try!(extract_string(&map, "first_name")),
-        institution: try!(extract_string(&map, "institution")),
-        street: try!(extract_string(&map, "street")),
-        street_no: try!(extract_string(&map, "street_no")),
-        zip_code: try!(extract_string(&map, "zip_code")),
-        city: try!(extract_string(&map, "city")),
-        phone: try!(extract_string(&map, "phone")),
-        email_to: try!(extract_string(&map, "email_to")),
-        more_info: try!(extract_string(&map, "more_info")),
-        price_category: if try!(extract_string(&map, "price_category")) == "student".to_string() { PriceCategory::Student }
+        last_name: extract_string(&map, "last_name")?,
+        first_name: extract_string(&map, "first_name")?,
+        institution: extract_string(&map, "institution")?,
+        street: extract_string(&map, "street")?,
+        street_no: extract_string(&map, "street_no")?,
+        zip_code: extract_string(&map, "zip_code")?,
+        city: extract_string(&map, "city")?,
+        phone: extract_string(&map, "phone")?,
+        email_to: extract_string(&map, "email_to")?,
+        more_info: extract_string(&map, "more_info")?,
+        price_category: if extract_string(&map, "price_category")? == "student".to_string() { PriceCategory::Student }
         else { PriceCategory::Regular },
-        course_type: if try!(extract_string(&map, "course_type")) == "course1".to_string() { Course::Course1 }
+        course_type: if extract_string(&map, "course_type")? == "course1".to_string() { Course::Course1 }
         else { Course::Course2 }
     };
 
@@ -202,8 +202,8 @@ fn insert_into_db(db_connection: &Connection, registration: &Registration) -> Re
     let title = if registration.title == Title::Sir { "sir".to_string() } else { "madam".to_string() };
     let price_category = if registration.price_category == PriceCategory::Student { "student".to_string() } else { "regular".to_string() };
     let course_type = if registration.course_type == Course::Course1 { "course1".to_string() } else { "course2".to_string() };
-    
-    try!(db_connection.execute("
+
+    db_connection.execute("
          INSERT INTO registration (
            title,
            last_name,
@@ -233,14 +233,14 @@ fn insert_into_db(db_connection: &Connection, registration: &Registration) -> Re
              &registration.more_info,
              &price_category,
              &course_type
-         ]));
+         ])?;
 
-    
+
     Ok(())
 }
 
 fn send_mail(registration: &Registration, config: &Configuration) -> Result<(), HandleError> {
-    let course = if registration.course_type == Course::Course1 { "3. Maerz 2017" } else { "22. September 2017" };
+    let course = if registration.course_type == Course::Course1 { &config.course1 } else { &config.course2 };
     let subject = format!("Anmeldungsbestaetigung: TGAG Fortbildung - {}", course);
     let greeting = if registration.title == Title::Sir { format!("Sehr geehrter Herr {},", registration.last_name) } else { format!("Sehr geehrte Frau {},", registration.last_name) };
     let price = if registration.price_category == PriceCategory::Student { "Student".to_string() } else { "Regulaer".to_string() };
@@ -248,18 +248,18 @@ fn send_mail(registration: &Registration, config: &Configuration) -> Result<(), 
 
     let email_to = registration.email_to.as_str();
     let email_from = config.email_from.as_str();
-    
-    let email = try!(EmailBuilder::new()
+
+    let email = EmailBuilder::new()
                     .to(email_to)
                     .from(email_from)
                     .cc(email_from)
                     .body(&body)
                     .subject(&subject)
-                    .build());
+                    .build()?;
 
-    let host_ip = try!(Ipv4Addr::from_str(&config.email_server));
-    
-    let mut mailer = try!(SmtpTransportBuilder::new((host_ip, SUBMISSION_PORT)))
+    let host_ip = Ipv4Addr::from_str(&config.email_server)?;
+
+    let mut mailer = SmtpTransportBuilder::new((host_ip, SUBMISSION_PORT))?
         .hello_name(&config.email_hello)
         .credentials(&config.email_username, &config.email_password)
         .security_level(SecurityLevel::AlwaysEncrypt)
@@ -267,8 +267,8 @@ fn send_mail(registration: &Registration, config: &Configuration) -> Result<(), 
         .authentication_mechanism(Mechanism::CramMd5)
         .connection_reuse(true).build();
 
-    try!(mailer.send(email));
-    
+    mailer.send(email)?;
+
     Ok(())
 }
 
@@ -280,7 +280,7 @@ mod tests {
 
     use rusqlite::Connection;
 
-    
+
     #[test]
     fn test_extract_string() {
         let mut map = Map::new();
@@ -323,7 +323,7 @@ mod tests {
             price_category: PriceCategory::Student,
             course_type: Course::Course1
         };
-        
+
         assert_eq!(result, expected);
     }
 
@@ -360,7 +360,7 @@ mod tests {
             price_category: PriceCategory::Student,
             course_type: Course::Course1
         };
-        
+
         assert_eq!(result, expected);
     }
 
@@ -397,7 +397,7 @@ mod tests {
             price_category: PriceCategory::Regular,
             course_type: Course::Course1
         };
-        
+
         assert_eq!(result, expected);
     }
 
@@ -434,7 +434,7 @@ mod tests {
             price_category: PriceCategory::Student,
             course_type: Course::Course2
         };
-        
+
         assert_eq!(result, expected);
     }
 
@@ -471,7 +471,7 @@ mod tests {
                   email_to        TEXT NOT NULL,
                   more_info       TEXT NOT NULL,
                   price_category  TEXT NOT NULL,
-                  course_type     Text NOT NULL
+                  course_type     TEXT NOT NULL
                   )", &[]).unwrap();
 
         assert!(insert_into_db(&conn, &reg).is_ok());
@@ -541,7 +541,7 @@ mod tests {
     #[test]
     fn test_send_mail1() {
         let config = load_configuration("test_config2.ini").unwrap();
-        
+
         let reg = Registration {
             title: Title::Sir,
             last_name: "Smith".to_string(),
@@ -566,7 +566,7 @@ mod tests {
     #[test]
     fn test_send_mail2() {
         let config = load_configuration("test_config2.ini").unwrap();
-        
+
         let reg = Registration {
             title: Title::Madam,
             last_name: "Smith".to_string(),

@@ -16,7 +16,9 @@ pub struct Configuration {
     pub email_server: String,
     pub email_hello: String,
     pub email_username: String,
-    pub email_password: String
+    pub email_password: String,
+    pub course1: String,
+    pub course2: String
 }
 
 #[derive(Debug)]
@@ -45,23 +47,25 @@ impl From<AddrParseError> for ConfigError {
 }
 
 pub fn load_configuration(file_name: &str) -> Result<Configuration, ConfigError> {
-    let ini_conf = try!(Ini::load_from_file(file_name));
+    let ini_conf = Ini::load_from_file(file_name)?;
 
-    let section1 = try!(ini_conf.section(Some("Basic")).ok_or(ConfigError::Ini));
-    let host = try!(section1.get("host").ok_or(ConfigError::Ini));
-    let port = try!(try!(section1.get("port").ok_or(ConfigError::Ini)).parse::<u16>());
-    let db_filename = try!(section1.get("db_filename").ok_or(ConfigError::Ini));
-    let template_folder = try!(section1.get("template_folder").ok_or(ConfigError::Ini));
-    let host_ip = try!(Ipv4Addr::from_str(&host));
+    let section1 = ini_conf.section(Some("Basic")).ok_or(ConfigError::Ini)?;
+    let host = section1.get("host").ok_or(ConfigError::Ini)?;
+    let port = section1.get("port").ok_or(ConfigError::Ini)?.parse::<u16>()?;
+    let db_filename = section1.get("db_filename").ok_or(ConfigError::Ini)?;
+    let template_folder = section1.get("template_folder").ok_or(ConfigError::Ini)?;
+    let host_ip = Ipv4Addr::from_str(&host)?;
     let socket_addr = SocketAddrV4::new(host_ip, port);
 
-    let section2 = try!(ini_conf.section(Some("EMail")).ok_or(ConfigError::Ini));
-    let email_from = try!(section2.get("from").ok_or(ConfigError::Ini));
-    let email_server = try!(section2.get("server").ok_or(ConfigError::Ini));
-    let email_hello = try!(section2.get("hello").ok_or(ConfigError::Ini));
-    let email_username = try!(section2.get("username").ok_or(ConfigError::Ini));
-    let email_password = try!(section2.get("password").ok_or(ConfigError::Ini));
-    
+    let section2 = ini_conf.section(Some("EMail")).ok_or(ConfigError::Ini)?;
+    let email_from = section2.get("from").ok_or(ConfigError::Ini)?;
+    let email_server = section2.get("server").ok_or(ConfigError::Ini)?;
+    let email_hello = section2.get("hello").ok_or(ConfigError::Ini)?;
+    let email_username = section2.get("username").ok_or(ConfigError::Ini)?;
+    let email_password = section2.get("password").ok_or(ConfigError::Ini)?;
+    let course1 = section2.get("course1").ok_or(ConfigError::Ini)?;
+    let course2 = section2.get("course2").ok_or(ConfigError::Ini)?;
+
     Ok(Configuration {
         host: host.to_string(),
         port: port,
@@ -72,7 +76,9 @@ pub fn load_configuration(file_name: &str) -> Result<Configuration, ConfigError>
         email_server: email_server.to_string(),
         email_hello: email_hello.to_string(),
         email_username: email_username.to_string(),
-        email_password: email_password.to_string()
+        email_password: email_password.to_string(),
+        course1: course1.to_string(),
+        course2: course2.to_string()
     })
 }
 
@@ -84,7 +90,7 @@ mod tests {
     use std::io::prelude::Write;
     use std::net::{SocketAddrV4, Ipv4Addr};
     use std::str::FromStr;
-    
+
     #[test]
     fn test_load_configuration1() {
         let file_name = "test_config1.ini";
@@ -109,6 +115,8 @@ mod tests {
                 hello = my.server.org
                 username = bob
                 password = secret
+                course1 = 1. Jan 2000
+                course2 = 12. August 2010
             ").unwrap();
         }
 
@@ -124,7 +132,9 @@ mod tests {
             email_server: "some.smtp.com".to_string(),
             email_hello: "my.server.org".to_string(),
             email_username: "bob".to_string(),
-            email_password: "secret".to_string()
+            email_password: "secret".to_string(),
+            course1: "1. Jan 2000".to_string(),
+            course2: "12. August 2010".to_string(),
         };
 
         assert_eq!(config, expected);
