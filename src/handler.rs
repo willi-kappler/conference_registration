@@ -197,6 +197,25 @@ fn map2registration(map: Map) -> Result<Registration, HandleError> {
     Ok(result)
 }
 
+fn create_db_table(db_connection: &Connection) -> Result<i32, rusqlite::Error> {
+    db_connection.execute("CREATE TABLE registration (
+      id              INTEGER PRIMARY KEY,
+      title           TEXT NOT NULL,
+      last_name       TEXT NOT NULL,
+      first_name      TEXT NOT NULL,
+      institution     TEXT NOT NULL,
+      street          TEXT NOT NULL,
+      street_no       TEXT NOT NULL,
+      zip_code        TEXT NOT NULL,
+      city            TEXT NOT NULL,
+      phone           TEXT NOT NULL,
+      email_to        TEXT NOT NULL,
+      more_info       TEXT NOT NULL,
+      price_category  TEXT NOT NULL,
+      course_type     TEXT NOT NULL
+      )", &[])
+}
+
 fn insert_into_db(db_connection: &Connection, registration: &Registration) -> Result<(), HandleError> {
     let title = if registration.title == Title::Sir { "sir".to_string() } else { "madam".to_string() };
     let price_category = if registration.price_category == PriceCategory::Student { "student".to_string() } else { "regular".to_string() };
@@ -273,11 +292,14 @@ fn send_mail(registration: &Registration, config: &Configuration) -> Result<(), 
 
 #[cfg(test)]
 mod tests {
-    use super::{extract_string, map2registration, insert_into_db, send_mail, Registration, PriceCategory, Title, Course};
+    use super::{extract_string, map2registration, insert_into_db, send_mail, Registration,
+        PriceCategory, Title, Course, create_db_table};
     use config::{load_configuration};
     use params::{Value, Map};
 
     use rusqlite::Connection;
+
+    use std::fs;
 
 
     #[test]
@@ -456,22 +478,7 @@ mod tests {
             course_type: Course::Course1
         };
 
-        conn.execute("CREATE TABLE registration (
-                  id              INTEGER PRIMARY KEY,
-                  title           TEXT NOT NULL,
-                  last_name       TEXT NOT NULL,
-                  first_name      TEXT NOT NULL,
-                  institution     TEXT NOT NULL,
-                  street          TEXT NOT NULL,
-                  street_no       TEXT NOT NULL,
-                  zip_code        TEXT NOT NULL,
-                  city            TEXT NOT NULL,
-                  phone           TEXT NOT NULL,
-                  email_to        TEXT NOT NULL,
-                  more_info       TEXT NOT NULL,
-                  price_category  TEXT NOT NULL,
-                  course_type     TEXT NOT NULL
-                  )", &[]).unwrap();
+        create_db_table(&conn).unwrap();
 
         assert!(insert_into_db(&conn, &reg).is_ok());
 
@@ -497,7 +504,8 @@ mod tests {
 
     #[test]
     fn test_insert_into_db2() {
-        let conn = Connection::open("registration_database.sqlite3").unwrap();
+        let file_name = "registration_database.sqlite3";
+        let conn = Connection::open(file_name).unwrap();
         let reg = Registration {
             title: Title::Sir,
             last_name: "Smith".to_string(),
@@ -513,6 +521,8 @@ mod tests {
             price_category: PriceCategory::Student,
             course_type: Course::Course2
         };
+
+        create_db_table(&conn).unwrap();
 
         assert!(insert_into_db(&conn, &reg).is_ok());
 
@@ -535,6 +545,8 @@ mod tests {
         assert_eq!(result.get::<i32, String>(13), "course2");
 
         conn.execute("DELETE FROM registration WHERE city = 'Somewhere';", &[]).unwrap();
+
+        fs::remove_file(file_name).unwrap();
     }
 
     #[test]

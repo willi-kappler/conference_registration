@@ -90,6 +90,7 @@ mod tests {
     use std::io::prelude::Write;
     use std::net::{SocketAddrV4, Ipv4Addr};
     use std::str::FromStr;
+    use std::fs;
 
     #[test]
     fn test_load_configuration1() {
@@ -138,5 +139,7 @@ mod tests {
         };
 
         assert_eq!(config, expected);
+
+        fs::remove_file(file_name).unwrap();
     }
 }
