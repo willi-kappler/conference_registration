@@ -185,14 +185,14 @@ struct Registration {
 }
 
 fn check_login(req: &mut Request) -> Result<bool, HandleError> {
-    let map = try!(req.get::<Params>());
+    let map = req.get::<Params>()?;
 
     info!("{}: handle_submit: {:?}", Local::now().format("%Y.%m.%d"), map);
 
-    let config = try!(req.get::<Read<Configuration>>());
+    let config = req.get::<Read<Configuration>>()?;
 
-    let username = try!(extract_string(&map, "username"));
-    let password = try!(extract_string(&map, "password"));
+    let username = extract_string(&map, "username")?;
+    let password = extract_string(&map, "password")?;
 
     Ok(username == config.login_user && password == config.login_passwd)
 }
@@ -316,21 +316,21 @@ pub fn handle_login(req: &mut Request) -> IronResult<Response> {
 }
 
 fn handle_form_data(req: &mut Request) -> Result<(), HandleError> {
-    let map = try!(req.get::<Params>());
+    let map = req.get::<Params>()?;
 
     info!("{}: handle_submit: {:?}", Local::now().format("%Y.%m.%d"), map);
 
-    let registration = try!(map2registration(map));
+    let registration = map2registration(map)?;
 
-    let mutex = try!(req.get::<Write<DBConnection>>());
+    let mutex = req.get::<Write<DBConnection>>()?;
 
-    let db_connection = try!(mutex.lock());
+    let db_connection = mutex.lock()?;
 
-    try!(insert_into_db(&*db_connection, &registration));
+    insert_into_db(&*db_connection, &registration)?;
 
-    let config = try!(req.get::<Read<Configuration>>());
+    let config = req.get::<Read<Configuration>>()?;
 
-    try!(send_mail(&registration, &config));
+    send_mail(&registration, &config)?;
 
     Ok(())
 }
@@ -344,56 +344,56 @@ fn extract_string(map: &Map, key: &str) -> Result<String, HandleError> {
 
 fn map2registration(map: Map) -> Result<Registration, HandleError> {
     let result = Registration{
-        title: Title::from(try!(extract_string(&map, "title"))),
-        last_name: try!(extract_string(&map, "last_name")),
-        first_name: try!(extract_string(&map, "first_name")),
-        email_to: try!(extract_string(&map, "email_to")),
-        institution: try!(extract_string(&map, "institution")),
-        special_participant: try!(extract_string(&map, "special_participant")) == "yes",
-        project_number: try!(extract_string(&map, "project_number")),
-        phd_student: try!(extract_string(&map, "phd_student")) == "yes",
-        presentation: Presentation::from(try!(extract_string(&map, "presentation"))),
-        presentation_title: try!(extract_string(&map, "presentation_title")),
-        meal_type: Meal::from(try!(extract_string(&map, "meal_type"))),
-        pay_cash: try!(extract_string(&map, "pay_cash")) == "yes",
-        comment: try!(extract_string(&map, "comment"))
+        title: Title::from(extract_string(&map, "title")?),
+        last_name: extract_string(&map, "last_name")?,
+        first_name: extract_string(&map, "first_name")?,
+        email_to: extract_string(&map, "email_to")?,
+        institution: extract_string(&map, "institution")?,
+        special_participant: extract_string(&map, "special_participant")? == "yes",
+        project_number: extract_string(&map, "project_number")?,
+        phd_student: extract_string(&map, "phd_student")? == "yes",
+        presentation: Presentation::from(extract_string(&map, "presentation")?),
+        presentation_title: extract_string(&map, "presentation_title")?,
+        meal_type: Meal::from(extract_string(&map, "meal_type")?),
+        pay_cash: extract_string(&map, "pay_cash")? == "yes",
+        comment: extract_string(&map, "comment")?
     };
 
     Ok(result)
 }
 
 fn insert_into_db(db_connection: &Connection, registration: &Registration) -> Result<(), HandleError> {
-    try!(db_connection.execute("
-         INSERT INTO registration (
-           title,
-           last_name,
-           first_name,
-           email_to,
-           institution,
-           special_participant,
-           project_number,
-           phd_student,
-           presentation,
-           presentation_title,
-           meal_type,
-           pay_cash,
-           comment
-       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
-         ",&[
-             &(registration.title.to_string()),
-             &registration.last_name,
-             &registration.first_name,
-             &registration.email_to,
-             &registration.institution,
-             &registration.special_participant,
-             &registration.project_number,
-             &registration.phd_student,
-             &(registration.presentation.to_string()),
-             &registration.presentation_title,
-             &(registration.meal_type.to_string()),
-             &registration.pay_cash,
-             &registration.comment,
-         ]));
+    db_connection.execute("
+     INSERT INTO registration (
+       title,
+       last_name,
+       first_name,
+       email_to,
+       institution,
+       special_participant,
+       project_number,
+       phd_student,
+       presentation,
+       presentation_title,
+       meal_type,
+       pay_cash,
+       comment
+   ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+     ",&[
+         &(registration.title.to_string()),
+         &registration.last_name,
+         &registration.first_name,
+         &registration.email_to,
+         &registration.institution,
+         &registration.special_participant,
+         &registration.project_number,
+         &registration.phd_student,
+         &(registration.presentation.to_string()),
+         &registration.presentation_title,
+         &(registration.meal_type.to_string()),
+         &registration.pay_cash,
+         &registration.comment,
+     ])?;
 
     Ok(())
 }
@@ -405,17 +405,17 @@ fn send_mail(registration: &Registration, config: &Configuration) -> Result<(), 
     let email_to = registration.email_to.as_str();
     let email_from = config.email_from.as_str();
 
-    let email = try!(EmailBuilder::new()
-                    .to(email_to)
-                    .from(email_from)
-                    //.cc(email_from)
-                    .body(&body)
-                    .subject(&subject)
-                    .build());
+    let email = EmailBuilder::new()
+                .to(email_to)
+                .from(email_from)
+                //.cc(email_from)
+                .body(&body)
+                .subject(&subject)
+                .build()?;
 
-    let host_ip = try!(Ipv4Addr::from_str(&config.email_server));
+    let host_ip = Ipv4Addr::from_str(&config.email_server)?;
 
-    let mut mailer = try!(SmtpTransportBuilder::new((host_ip, SUBMISSION_PORT)))
+    let mut mailer = SmtpTransportBuilder::new((host_ip, SUBMISSION_PORT))?
         .hello_name(&config.email_hello)
         .credentials(&config.email_username, &config.email_password)
         .security_level(SecurityLevel::AlwaysEncrypt)
@@ -423,7 +423,7 @@ fn send_mail(registration: &Registration, config: &Configuration) -> Result<(), 
         .authentication_mechanism(Mechanism::CramMd5)
         .connection_reuse(true).build();
 
-    try!(mailer.send(email));
+    mailer.send(email)?;
 
     Ok(())
 }

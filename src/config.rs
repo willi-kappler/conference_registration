@@ -50,27 +50,27 @@ impl From<AddrParseError> for ConfigError {
 }
 
 pub fn load_configuration(file_name: &str) -> Result<Configuration, ConfigError> {
-    let ini_conf = try!(Ini::load_from_file(file_name));
+    let ini_conf = Ini::load_from_file(file_name)?;
 
-    let section1 = try!(ini_conf.section(Some("Basic")).ok_or(ConfigError::Ini));
-    let host = try!(section1.get("host").ok_or(ConfigError::Ini));
-    let port = try!(try!(section1.get("port").ok_or(ConfigError::Ini)).parse::<u16>());
-    let log_file = try!(section1.get("log_file").ok_or(ConfigError::Ini));
-    let login_user = try!(section1.get("login_user").ok_or(ConfigError::Ini));
-    let login_passwd = try!(section1.get("login_passwd").ok_or(ConfigError::Ini));
-    let cookie_key = try!(section1.get("cookie_key").ok_or(ConfigError::Ini));
-    let cookie_max_age = try!(try!(section1.get("cookie_max_age").ok_or(ConfigError::Ini)).parse::<u32>());
-    let db_filename = try!(section1.get("db_filename").ok_or(ConfigError::Ini));
-    let template_folder = try!(section1.get("template_folder").ok_or(ConfigError::Ini));
-    let host_ip = try!(Ipv4Addr::from_str(&host));
+    let section1 = ini_conf.section(Some("Basic")).ok_or(ConfigError::Ini)?;
+    let host = section1.get("host").ok_or(ConfigError::Ini)?;
+    let port = section1.get("port").ok_or(ConfigError::Ini)?.parse::<u16>()?;
+    let log_file = section1.get("log_file").ok_or(ConfigError::Ini)?;
+    let login_user = section1.get("login_user").ok_or(ConfigError::Ini)?;
+    let login_passwd = section1.get("login_passwd").ok_or(ConfigError::Ini)?;
+    let cookie_key = section1.get("cookie_key").ok_or(ConfigError::Ini)?;
+    let cookie_max_age = section1.get("cookie_max_age").ok_or(ConfigError::Ini)?.parse::<u32>()?;
+    let db_filename = section1.get("db_filename").ok_or(ConfigError::Ini)?;
+    let template_folder = section1.get("template_folder").ok_or(ConfigError::Ini)?;
+    let host_ip = Ipv4Addr::from_str(&host)?;
     let socket_addr = SocketAddrV4::new(host_ip, port);
 
-    let section2 = try!(ini_conf.section(Some("EMail")).ok_or(ConfigError::Ini));
-    let email_from = try!(section2.get("from").ok_or(ConfigError::Ini));
-    let email_server = try!(section2.get("server").ok_or(ConfigError::Ini));
-    let email_hello = try!(section2.get("hello").ok_or(ConfigError::Ini));
-    let email_username = try!(section2.get("username").ok_or(ConfigError::Ini));
-    let email_password = try!(section2.get("password").ok_or(ConfigError::Ini));
+    let section2 = ini_conf.section(Some("EMail")).ok_or(ConfigError::Ini)?;
+    let email_from = section2.get("from").ok_or(ConfigError::Ini)?;
+    let email_server = section2.get("server").ok_or(ConfigError::Ini)?;
+    let email_hello = section2.get("hello").ok_or(ConfigError::Ini)?;
+    let email_username = section2.get("username").ok_or(ConfigError::Ini)?;
+    let email_password = section2.get("password").ok_or(ConfigError::Ini)?;
 
     Ok(Configuration {
         host: host.to_string(),
