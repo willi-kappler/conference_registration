@@ -37,7 +37,7 @@ mod config;
 mod handler;
 
 use config::{load_configuration, Configuration};
-use handler::{handle_main, handle_submit};
+use handler::{handle_main, handle_submit, create_db_table};
 
 pub struct DBConnection;
 
@@ -55,6 +55,8 @@ fn main() {
     };
 
     let db_conn = Connection::open(&config.db_filename).unwrap();
+
+    let _ = create_db_table(&db_conn);
 
     let mut hbse = HandlebarsEngine::new();
     hbse.add(Box::new(DirectorySource::new(&config.template_folder, ".hbs")));
@@ -75,6 +77,7 @@ fn main() {
 
     mount.mount("/", router);
     mount.mount("/css/", Static::new(Path::new("css/")));
+    mount.mount("/js/", Static::new(Path::new("js/")));
 
     let mut chain1 = Chain::new(mount);
     chain1.link_after(hbse);
