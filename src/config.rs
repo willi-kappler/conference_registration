@@ -17,8 +17,6 @@ pub struct Configuration {
     pub email_hello: String,
     pub email_username: String,
     pub email_password: String,
-    pub course1: String,
-    pub course2: String
 }
 
 #[derive(Debug)]
@@ -63,8 +61,6 @@ pub fn load_configuration(file_name: &str) -> Result<Configuration, ConfigError>
     let email_hello = section2.get("hello").ok_or(ConfigError::Ini)?;
     let email_username = section2.get("username").ok_or(ConfigError::Ini)?;
     let email_password = section2.get("password").ok_or(ConfigError::Ini)?;
-    let course1 = section2.get("course1").ok_or(ConfigError::Ini)?;
-    let course2 = section2.get("course2").ok_or(ConfigError::Ini)?;
 
     Ok(Configuration {
         host: host.to_string(),
@@ -77,8 +73,6 @@ pub fn load_configuration(file_name: &str) -> Result<Configuration, ConfigError>
         email_hello: email_hello.to_string(),
         email_username: email_username.to_string(),
         email_password: email_password.to_string(),
-        course1: course1.to_string(),
-        course2: course2.to_string()
     })
 }
 
@@ -116,8 +110,6 @@ mod tests {
                 hello = my.server.org
                 username = bob
                 password = secret
-                course1 = 1. Jan 2000
-                course2 = 12. August 2010
             ").unwrap();
         }
 
@@ -134,8 +126,6 @@ mod tests {
             email_hello: "my.server.org".to_string(),
             email_username: "bob".to_string(),
             email_password: "secret".to_string(),
-            course1: "1. Jan 2000".to_string(),
-            course2: "12. August 2010".to_string(),
         };
 
         assert_eq!(config, expected);
