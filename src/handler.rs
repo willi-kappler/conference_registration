@@ -7,7 +7,6 @@ use iron::prelude::{Request, IronResult, Response, Set};
 use iron::status;
 
 use handlebars_iron::{Template};
-use rustc_serialize::json::{Json, ToJson};
 use params::{Params, Value, Map, ParamsError};
 use plugin::Pluggable;
 use persistent::{Read, Write, PersistentError};
@@ -123,22 +122,22 @@ pub fn handle_main(req: &mut Request) -> IronResult<Response> {
 
     info!("handle_main: {:?}", map);
 
-    let data : BTreeMap<String, Json> = BTreeMap::new();
+    let data: BTreeMap<String, String> = BTreeMap::new();
     resp.set_mut(Template::new("index", data)).set_mut(status::Ok);
     Ok(resp)
 }
 
 pub fn handle_submit(req: &mut Request) -> IronResult<Response> {
-    let mut message: BTreeMap<String, Json> = BTreeMap::new();
+    let mut message = BTreeMap::new();
 
     match handle_form_data(req) {
         Ok(_) => {
             info!("Data handled successfully");
-            message.insert("message".to_string(), "Ihre Anmeldung war erfolgreich".to_json());
+            message.insert("message".to_string(), "Ihre Anmeldung war erfolgreich".to_string());
         }
         Err(e) => {
             error!("Error while processing data: {:?}", e);
-            message.insert("message".to_string(), "Ein Fehler ist aufgetreten. Bitte versuchen Sie es später noch einmal.".to_json());
+            message.insert("message".to_string(), "Ein Fehler ist aufgetreten. Bitte versuchen Sie es später noch einmal.".to_string());
         }
     }
 
@@ -178,7 +177,7 @@ fn extract_string(map: &Map, key: &str) -> Result<String, HandleError> {
 fn map2registration(map: Map) -> Result<Registration, HandleError> {
     let result = Registration{
         title: if extract_string(&map, "title")? == "sir".to_string() { Title::Sir }
-        else { Title::Madam },
+               else { Title::Madam },
         last_name: extract_string(&map, "last_name")?,
         first_name: extract_string(&map, "first_name")?,
         institution: extract_string(&map, "institution")?,

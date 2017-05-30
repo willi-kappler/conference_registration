@@ -4,7 +4,6 @@ extern crate mount;
 extern crate staticfile;
 extern crate rusqlite;
 extern crate handlebars_iron;
-extern crate rustc_serialize;
 extern crate params;
 extern crate plugin;
 #[macro_use] extern crate log;
