@@ -11,6 +11,7 @@ extern crate simplelog;
 extern crate persistent;
 extern crate lettre;
 extern crate ini;
+extern crate chrono;
 
 // System modules
 

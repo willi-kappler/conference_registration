@@ -23,6 +23,7 @@ use lettre;
 use ::DBConnection;
 use config::Configuration;
 
+use chrono::{DateTime, Local};
 
 #[derive(Debug)]
 pub enum HandleError {
@@ -102,8 +103,9 @@ pub fn handle_main(req: &mut Request) -> IronResult<Response> {
     let map = req.get_ref::<Params>().unwrap();
 
     let mut resp = Response::new();
+    let local_time: DateTime<Local> = Local::now();
 
-    info!("handle_main: {:?}", map);
+    info!("handle_main ({}): {:?}", local_time, map);
 
     let data: BTreeMap<String, String> = BTreeMap::new();
     resp.set_mut(Template::new("index", data)).set_mut(status::Ok);
@@ -132,8 +134,9 @@ pub fn handle_submit(req: &mut Request) -> IronResult<Response> {
 
 fn handle_form_data(req: &mut Request) -> Result<(), HandleError> {
     let map = req.get::<Params>()?;
+    let local_time: DateTime<Local> = Local::now();
 
-    info!("handle_submit: {:?}", map);
+    info!("handle_form_data ({}): {:?}", local_time, map);
 
     let registration = map2registration(map)?;
 
