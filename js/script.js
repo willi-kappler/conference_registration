@@ -9,6 +9,12 @@ $(function() {
       console.log("has html5 validation");
       $('#validate').submit(function (e) {
         console.log("submit");
+
+        if ($("#captcha").val().trim() != "leopold2018") {
+          alert("Please enter correct answer!");
+          e.preventDefault();
+        }
+
         if (!this.checkValidity()) {
           e.preventDefault();
           console.log("invalid");
@@ -16,10 +22,6 @@ $(function() {
         } else {
           console.log("valid");
           $(this).addClass('valid');
-        }
-
-        if (!$('#pay_cash').is(":checked")) {
-          alert("Please click the registration box to indicate you will pay cash for your registration when you arrive at the meeting.");
         }
       });
     }
